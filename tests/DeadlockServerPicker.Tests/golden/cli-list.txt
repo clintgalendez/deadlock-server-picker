@@ -1,0 +1,52 @@
+Deadlock (app 1422450) | SDR revision 1794268433 | fetched 2026-11-24 06:45 UTC | STALE
+
+North America
+  atl    Atlanta (Georgia)                        4 relays
+  dfw    Dallas (Texas)                           4 relays
+  eat    Wenatchee (Washington)                   not blockable (no public relays) | reached via sea (3 ms)
+  iad    Sterling (Virginia)                      4 relays
+  lax    Los Angeles (California)                 4 relays
+  ord    Chicago (Illinois)                       4 relays
+  sea    Seattle (Washington)                     2 relays
+
+Europe
+  ams    Amsterdam (Netherlands)                  4 relays
+  dfra   Datapacket Frankfurt (Germany)           2 relays
+  dlhr   Datapacket London (England)              2 relays
+  dsto   Datapacket Stockholm (Sweden)            not blockable (no public relays) | reached via sto (12 ms), sto2 (12 ms)
+  dvie   Datapacket Vienna (Austria)              2 relays
+  fra    Frankfurt (Germany)                      16 relays
+  fsn    Hetzner Falkenstein (Germany)            not blockable (no public relays) | reached via dfra (5 ms), fra (5 ms), vie (7 ms), ams (11 ms), waw (14 ms)
+  hel    Hetzner Helsinki (Finland)               not blockable (no public relays) | reached via sto (7 ms), sto2 (8 ms)
+  lhr    London (England)                         4 relays
+  mad    Madrid (Spain)                           4 relays
+  par    Paris (France)                           4 relays
+  sto    Stockholm - Kista (Sweden)               11 relays
+  sto2   Stockholm - Bromma (Sweden)              10 relays
+  vie    Vienna (Austria)                         6 relays
+  waw    Warsaw (Poland)                          6 relays
+
+Asia
+  bom2   Mumbai (India)                           2 relays
+  gum    Guam                                     2 relays
+  hkg    Hong Kong                                10 relays
+  maa2   Chennai - Ambattur (India)               2 relays
+  seo    Seoul (South Korea)                      4 relays
+  sgp    Singapore                                6 relays
+  tyo    Tokyo Koto City (Japan)                  6 relays
+
+South America
+  eze    Buenos Aires (Argentina)                 4 relays
+  gru    Sao Paulo (Brazil)                       6 relays
+  lim    Lima (Peru)                              4 relays
+  scl    Santiago (Chile)                         2 relays
+
+Oceania
+  syd    Sydney (Australia)                       4 relays
+
+Middle East
+  dfjr   Datapacket Fujairah (UAE)                2 relays
+  dxb    Dubai (United Arab Emirates)             2 relays
+
+Africa
+  jnb    Johannesburg (South Africa)              2 relays

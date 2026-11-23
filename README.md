@@ -66,7 +66,24 @@ dsp preset within 80          # block every PoP slower than 80 ms
 dsp reset                     # remove every rule this tool created
 ```
 
-Every command accepts `--json`. Commands that change the firewall accept `--dry-run`, which prints the exact commands instead of running them. Changing the firewall needs an elevated terminal on Windows and `sudo` on Linux.
+Every command accepts `--json`. Commands that change the firewall accept `--dry-run`, which prints the exact commands instead of running them. Changing the firewall needs an elevated terminal on Windows and `sudo` on Linux. On Linux, `status` also needs `sudo`, because reading nftables or iptables requires root.
+
+Other options:
+- `--app <id>`: another Steam app ID. Default is 1422450 (Deadlock); 730 is Counter-Strike 2, which uses the same relay network.
+- `--offline`: use the cached relay list without downloading.
+- `--backend windows|nftables|iptables`: force a backend.
+
+`dsp version` prints the config directory and the log file path.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | ok |
+| 1 | error |
+| 2 | usage error |
+| 3 | relay list unavailable (offline and nothing cached) |
+| 4 | needs administrator or root |
 
 ## Building from source
 

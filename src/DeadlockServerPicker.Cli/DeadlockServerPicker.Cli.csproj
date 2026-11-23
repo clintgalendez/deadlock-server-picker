@@ -3,7 +3,8 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>dsp</AssemblyName>
     <RootNamespace>DeadlockServerPicker.Cli</RootNamespace>
-    <SelfContained>true</SelfContained>
+    <!-- Self-contained only when publishing for a RID, so the test project can reference this one. -->
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
