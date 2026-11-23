@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Still matched to a blocked region? Read the limitations first"
+    url: https://github.com/clintgalendez/deadlock-server-picker/blob/main/docs/limitations.md
+    about: SDR can route you through relays you left open; some locations can't be blocked.
+  - name: Report a security vulnerability
+    url: https://github.com/clintgalendez/deadlock-server-picker/security/advisories/new
+    about: Please report privately.

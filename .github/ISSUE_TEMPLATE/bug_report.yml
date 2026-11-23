@@ -1,0 +1,69 @@
+name: Bug report
+description: Something doesn't work as documented
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Still matched to a region you blocked?** Read [docs/limitations.md](https://github.com/clintgalendez/deadlock-server-picker/blob/main/docs/limitations.md) first: SDR can route through a relay you left open. Run `net_connection_status` in the Deadlock console and include the `Remote host:` line below.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Output of `dsp version` (or the version shown in the GUI title bar)
+      placeholder: dsp 0.1.0+abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux (Arch / CachyOS / Manjaro)
+        - Linux (Ubuntu / Debian / Mint / Pop!_OS)
+        - Linux (Fedora / Nobara)
+        - SteamOS / Steam Deck
+        - Linux (other)
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS details
+      description: Exact version; on Linux also the firewall backend (`dsp status` shows it) and whether ufw/firewalld/docker are running
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands or clicks
+      placeholder: |
+        1. dsp block asia
+        2. dsp status
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected vs. actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: VPN / antivirus / third-party firewall
+      description: Anything that changes networking (VPN, ExitLag, Bitdefender, Norton…)
+  - type: textarea
+    id: log
+    attributes:
+      label: Log file
+      description: |
+        Attach or paste the log file:
+        - Windows: `%APPDATA%\DeadlockServerPicker\dsp.log`
+        - Linux: `~/.config/deadlock-server-picker/dsp.log` (or `/root/.config/deadlock-server-picker/dsp.log` when run with sudo)
+        `dsp version` prints the exact path.
+      render: text
+    validations:
+      required: true
