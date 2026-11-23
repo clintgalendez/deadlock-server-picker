@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement
+labels: ["type/feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This doesn't require modifying game files, game memory, launch options, VPN/routing tricks, or anything that could be considered cheating
+          required: true
