@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Compare Valve's live GetSDRConfig with the checked-in test fixtures.
+
+    python scripts/check-sdr-drift                  # check, open/comment an sdr-drift issue if needed
+    python scripts/check-sdr-drift --dry-run        # print the report only
+    python scripts/check-sdr-drift --update-fixtures  # also overwrite the fixtures with the live data
+
+Opens (or comments on) an issue labelled `sdr-drift` when PoPs were added or removed or the
+schema (key sets) changed. Relay IP churn alone is normal and only reported.
+Exit code: 0 no structural drift, 1 structural drift, 2 error.
+Uses only the Python standard library plus the `gh` CLI for the issue.
+"""
+import json
+import pathlib
+import subprocess
+import sys
+import urllib.request
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+FIXTURES = ROOT / "tests" / "DeadlockServerPicker.Tests" / "fixtures"
+APPS = {1422450: "Deadlock", 730: "Counter-Strike 2"}
+URL = "https://api.steampowered.com/ISteamApps/GetSDRConfig/v1/?appid={}"
+
+
+def fetch(app):
+    req = urllib.request.Request(URL.format(app), headers={"User-Agent": "deadlock-server-picker drift check"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read().decode("utf-8")
+
+
+def keys(config):
+    pops = config.get("pops", {}).values()
+    return {
+        "top-level": set(config),
+        "pop": set().union(*(p.keys() for p in pops)),
+        "relay": set().union(*(r.keys() for p in pops for r in p.get("relays", []))),
+    }
+
+
+def relay_ips(pop):
+    return {r.get("ipv4") for r in pop.get("relays", [])}
+
+
+def compare(app, old, new):
+    lines, structural = [], False
+    lines.append(f"### {APPS.get(app, 'app')} ({app}): revision {old.get('revision')} -> {new.get('revision')}")
+    old_pops, new_pops = old.get("pops", {}), new.get("pops", {})
+    added, removed = sorted(set(new_pops) - set(old_pops)), sorted(set(old_pops) - set(new_pops))
+    if added:
+        structural = True
+        described = [f"`{p}` ({new_pops[p].get('desc', p)})" for p in added]
+        lines.append("- **PoPs added:** " + ", ".join(described))
+    if removed:
+        structural = True
+        lines.append(f"- **PoPs removed:** {', '.join(f'`{p}`' for p in removed)}")
+    old_keys, new_keys = keys(old), keys(new)
+    for level in old_keys:
+        plus, minus = sorted(new_keys[level] - old_keys[level]), sorted(old_keys[level] - new_keys[level])
+        if plus or minus:
+            structural = True
+            lines.append(f"- **Schema ({level} keys):** added {plus or 'none'}, removed {minus or 'none'}")
+    for code in sorted(set(old_pops) & set(new_pops)):
+        a, b = relay_ips(old_pops[code]), relay_ips(new_pops[code])
+        if a != b:
+            lines.append(f"- relays `{code}`: +{len(b - a)} / -{len(a - b)} IPs" + (" (now none: not blockable)" if not b else ""))
+    if len(lines) == 1:
+        lines.append("- no differences")
+    return structural, lines
+
+
+def report_issue(body, title):
+    existing = subprocess.run(
+        ["gh", "issue", "list", "--label", "sdr-drift", "--state", "open", "--json", "number", "--jq", ".[0].number"],
+        capture_output=True, text=True, check=True).stdout.strip()
+    if existing:
+        subprocess.run(["gh", "issue", "comment", existing, "--body", body], check=True)
+        print(f"commented on issue #{existing}")
+    else:
+        subprocess.run(["gh", "issue", "create", "--title", title, "--label", "sdr-drift,area/core",
+                        "--body", body], check=True)
+
+
+def main(argv):
+    dry_run, update = "--dry-run" in argv, "--update-fixtures" in argv
+    report, drift = [], False
+    for app in APPS:
+        path = FIXTURES / f"sdr-{app}.json"
+        old = json.loads(path.read_text(encoding="utf-8"))
+        raw = fetch(app)
+        new = json.loads(raw)
+        structural, lines = compare(app, old, new)
+        drift |= structural
+        report += lines + [""]
+        if update:
+            path.write_text(raw, encoding="utf-8")
+    text = "\n".join(report)
+    print(text)
+    if update:
+        print("fixtures updated: review `git diff tests/`, update tests and regions.json, open a PR.")
+    if drift and not dry_run:
+        body = ("`scripts/check-sdr-drift` found structural drift between the live GetSDRConfig and the "
+                "test fixtures.\n\n" + text + "\n\nNext steps: run `python scripts/check-sdr-drift --update-fixtures`, "
+                "map new PoPs in `src/DeadlockServerPicker.Core/regions.json`, update tests, open a PR.")
+        report_issue(body, "SDR config drift: PoPs or schema changed")
+    return 1 if drift else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except Exception as e:  # noqa: BLE001 - report any failure with a clear exit code
+        print(f"check-sdr-drift: {e}", file=sys.stderr)
+        sys.exit(2)

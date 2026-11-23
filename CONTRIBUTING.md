@@ -47,7 +47,7 @@ just --list
 - Integration tests that touch a real firewall are opt-in:
   - Linux: `just integration-linux` runs the CLI inside a throwaway network namespace in WSL or Linux, as root.
   - Windows: `DSP_INTEGRATION_WINDOWS=1 just test` from an **elevated** shell. It creates rules under our prefix only and removes them.
-- `scripts/check-sdr-drift` compares the live config with the fixtures.
+- `scripts/check-sdr-drift` (Python 3, stdlib only) compares the live config with the fixtures. It opens or comments on an `sdr-drift` issue when PoPs or the schema change. `--dry-run` only prints the report, and `--update-fixtures` refreshes the snapshots. On Windows, run it as `python scripts/check-sdr-drift`.
 
 ## Docs and changelog
 
