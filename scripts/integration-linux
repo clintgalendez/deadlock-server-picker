@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Real-firewall integration test for the Linux backends (opt-in; `just integration-linux`).
+#
+# Publishes the linux-x64 CLI, then as root, in a throwaway network namespace per backend:
+#   - seeds "foreign" rules (another picker's table/chain, a ufw-like accept rule)
+#   - runs the real `dsp` through block, idempotent re-block, unblock, unblock-all, reset
+#   - asserts our rules appear and disappear, and that the whole ruleset after reset is
+#     byte-identical to before (we never touch anything outside our namespace)
+# Never touches the host's firewall: everything happens inside `ip netns`.
+#
+# Windows: runs inside WSL as root (DSP_WSL_DISTRO, default Ubuntu; needs nftables + iptables).
+# Linux: re-runs itself with sudo.
+set -euo pipefail
+
+if [ "${1:-}" != "--inner" ]; then
+    cd "$(git rev-parse --show-toplevel)"
+    echo "==> publishing linux-x64 CLI"
+    dotnet publish src/DeadlockServerPicker.Cli -c Release -r linux-x64 -o artifacts/integration/linux-x64 -p:Version=0.0.0-integration >/dev/null
+    if [ "$(uname -s)" = Linux ]; then
+        exec sudo bash scripts/integration-linux --inner "$PWD"
+    fi
+    export MSYS_NO_PATHCONV=1
+    exec wsl.exe -d "${DSP_WSL_DISTRO:-Ubuntu}" -u root -- bash -c 'cd "$(wslpath -a "$1")" && bash scripts/integration-linux --inner "$PWD"' _ "$(cygpath -m "$PWD")"
+fi
+
+# ---- inner: root on Linux -------------------------------------------------------------
+root=$2
+bin=/tmp/dsp-integration/dsp
+mkdir -p /tmp/dsp-integration
+cp "$root/artifacts/integration/linux-x64/dsp" "$bin"
+chmod +x "$bin"
+cfg=$(mktemp -d)
+cp "$root/tests/DeadlockServerPicker.Tests/fixtures/sdr-1422450.json" "$cfg/sdr-1422450.json"
+for tool in nft iptables iptables-restore ip; do
+    command -v "$tool" >/dev/null || { echo "missing $tool (install nftables and iptables)"; exit 2; }
+done
+
+ns=dsp-integration-$$
+failures=0
+pass() { echo "  ok   $1"; }
+fail() { echo "  FAIL $1"; failures=$((failures + 1)); }
+expect() { # description, expected, actual
+    if [ "$2" = "$3" ]; then pass "$1"; else fail "$1 (expected '$2', got '$3')"; fi
+}
+in_ns() { ip netns exec "$ns" "$@"; }
+dsp() { DSP_CONFIG_DIR="$cfg" ip netns exec "$ns" "$bin" "$@" --offline --backend "$backend" 2>>"$cfg/stderr.log"; }
+ours() { # number of our firewall objects/rules visible in the namespace
+    if [ "$backend" = nftables ]; then
+        in_ns nft list table inet dsp_deadlock_server_picker 2>/dev/null | grep -c 'set pop_' || true
+    else
+        in_ns iptables -w -S 2>/dev/null | grep -c -- '-d .*dsp:' || true
+    fi
+}
+cleanup() { ip netns del "$ns" 2>/dev/null || true; rm -rf "$cfg"; }
+trap cleanup EXIT
+
+seed_foreign() {
+    in_ns nft -f - <<'EOF'
+table inet deadlock_server_picker {
+	set pop_ams {
+		type ipv4_addr
+		elements = { 155.133.248.36 }
+	}
+	chain block {
+		type filter hook output priority 0; policy accept;
+		ip daddr @pop_ams drop
+	}
+}
+table inet foreign_tool {
+	chain out {
+		type filter hook output priority 10; policy accept;
+		accept
+	}
+}
+EOF
+    in_ns iptables -w -N DEADLOCK_SERVER_PICKER
+    in_ns iptables -w -A DEADLOCK_SERVER_PICKER -d 155.133.248.36/32 -m comment --comment DEADLOCK_SERVER_PICKER_ams -j DROP
+    in_ns iptables -w -I OUTPUT 1 -m comment --comment DEADLOCK_SERVER_PICKER -j DEADLOCK_SERVER_PICKER
+    in_ns iptables -w -A INPUT -m comment --comment ufw-like -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+}
+
+snapshot() { in_ns nft list ruleset 2>/dev/null; }
+
+for backend in nftables iptables; do
+    echo "==> $backend"
+    ip netns add "$ns"
+    seed_foreign
+    before=$(snapshot)
+
+    out=$(dsp status); expect "status: nothing blocked at start" "Nothing is blocked." "$(echo "$out" | grep -o 'Nothing is blocked.' || true)"
+    dsp block asia >/dev/null || fail "block asia exited non-zero"
+    if [ "$backend" = nftables ]; then expect "block asia: 7 sets" 7 "$(ours)"; else expect "block asia: 32 relay IPs (-d rules)" 32 "$(ours)"; fi
+    out=$(dsp block asia); expect "re-block is a no-op" "Nothing to change" "$(echo "$out" | grep -o 'Nothing to change' || true)"
+    out=$(dsp status --json); expect "status lists hkg" 1 "$(echo "$out" | grep -c '"code": "hkg"')"
+    dsp unblock hkg >/dev/null; out=$(dsp status --json); expect "unblock hkg removes it" 0 "$(echo "$out" | grep -c '"code": "hkg"')"
+    if [ "$backend" = iptables ]; then
+        in_ns iptables -w -D INPUT -j DSP_DEADLOCK_SERVER_PICKER
+        out=$(dsp status); expect "missing INPUT jump is detected" 1 "$(echo "$out" | grep -c 'jump from INPUT')"
+        dsp block asia >/dev/null; expect "re-apply restores the INPUT jump" 1 "$(in_ns iptables -w -S INPUT | grep -c -- '-j DSP_DEADLOCK_SERVER_PICKER')"
+    fi
+    dsp unblock --all >/dev/null; expect "unblock --all leaves nothing of ours" 0 "$(ours)"
+    dsp block na eu >/dev/null
+    dsp reset >/dev/null
+    expect "reset leaves zero traces of ours" 0 "$(snapshot | grep -c -e dsp_deadlock_server_picker -e DSP_DEADLOCK_SERVER_PICKER || true)"
+    out=$(dsp reset); expect "second reset is a no-op" "Nothing to change" "$(echo "$out" | grep -o 'Nothing to change' || true)"
+    after=$(snapshot)
+    if [ "$before" = "$after" ]; then pass "foreign rules byte-identical after the run"; else fail "foreign rules changed"; diff <(echo "$before") <(echo "$after") || true; fi
+
+    ip netns del "$ns"
+done
+
+echo
+if [ "$failures" -eq 0 ]; then echo "integration-linux: all checks passed"; else echo "integration-linux: $failures check(s) FAILED"; exit 1; fi
