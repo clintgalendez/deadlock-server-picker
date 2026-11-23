@@ -1,0 +1,3 @@
+nft list tables
+
+nft list table inet deadlock_server_picker

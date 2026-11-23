@@ -2,7 +2,10 @@ using DeadlockServerPicker.Core;
 
 namespace DeadlockServerPicker.Tests;
 
-[Collection(nameof(LogTests))] // Log is process-global
+[CollectionDefinition(nameof(LogTests), DisableParallelization = true)]
+public sealed class LogTestsCollection;
+
+[Collection(nameof(LogTests))] // Log is process-global: run alone, not alongside tests that log
 public class LogTests
 {
     [Fact]

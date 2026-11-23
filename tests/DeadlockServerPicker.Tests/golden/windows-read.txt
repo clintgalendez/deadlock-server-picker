@@ -1,0 +1,11 @@
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command '& ([scriptblock]::Create([Console]::In.ReadToEnd()))' <<'EOF'
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+Remove-TypeData -TypeName System.Array -ErrorAction SilentlyContinue
+$rules = @(Get-NetFirewallRule -Group 'DeadlockServerPicker' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'DeadlockServerPicker_*' })
+$filters = @($rules | Get-NetFirewallAddressFilter)
+ConvertTo-Json -Compress -Depth 4 -InputObject ([pscustomobject]@{
+    Rules = @($filters | ForEach-Object { [pscustomobject]@{ Name = [string]$_.InstanceID; Remote = @($_.RemoteAddress | ForEach-Object { [string]$_ }) } })
+    Profiles = @(Get-NetFirewallProfile | ForEach-Object { [pscustomobject]@{ Name = [string]$_.Name; Enabled = [string]$_.Enabled } })
+})
+EOF
