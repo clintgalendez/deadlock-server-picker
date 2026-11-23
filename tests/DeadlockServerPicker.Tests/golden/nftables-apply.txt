@@ -1,7 +1,7 @@
 nft -f - <<'EOF'
-table inet deadlock_server_picker {}
-delete table inet deadlock_server_picker
-table inet deadlock_server_picker {
+table inet dsp_deadlock_server_picker {}
+delete table inet dsp_deadlock_server_picker
+table inet dsp_deadlock_server_picker {
 	set pop_ams {
 		type ipv4_addr
 		elements = { 155.133.248.36, 155.133.248.37 }

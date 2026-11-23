@@ -3,12 +3,12 @@ using System.Text.RegularExpressions;
 namespace DeadlockServerPicker.Core.Firewall;
 
 /// <summary>
-/// iptables fallback: our own chain <c>DEADLOCK_SERVER_PICKER</c>, jumped to at position 1 of OUTPUT
+/// iptables fallback: our own chain <c>DSP_DEADLOCK_SERVER_PICKER</c>, jumped to at position 1 of OUTPUT
 /// and INPUT, with every rule tagged <c>-m comment --comment dsp:&lt;pop&gt;</c> (ADR 0002).
 /// </summary>
 public sealed partial class IptablesBackend(ICommandRunner runner) : IFirewallBackend
 {
-    public const string Chain = "DEADLOCK_SERVER_PICKER";
+    public const string Chain = "DSP_DEADLOCK_SERVER_PICKER";
     public static readonly IReadOnlyList<string> HookChains = ["OUTPUT", "INPUT"];
 
     public string Name => "iptables";

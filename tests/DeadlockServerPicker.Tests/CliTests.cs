@@ -104,8 +104,8 @@ public class CliTests
     public async Task StatusReadsTheFirewallAndComparesWithConfig()
     {
         var h = new CliHarness().WithCachedConfig();
-        h.Runner.On("list tables", "table inet deadlock_server_picker\n").On("list table inet deadlock_server_picker", """
-            table inet deadlock_server_picker {
+        h.Runner.On("list tables", "table inet dsp_deadlock_server_picker\n").On("list table inet dsp_deadlock_server_picker", """
+            table inet dsp_deadlock_server_picker {
             	set pop_ams {
             		type ipv4_addr
             		elements = { 155.133.248.36, 155.133.248.37, 155.133.248.40, 155.133.248.41 }

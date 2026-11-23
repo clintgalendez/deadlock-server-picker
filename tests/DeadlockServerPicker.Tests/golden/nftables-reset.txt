@@ -1,4 +1,4 @@
 nft -f - <<'EOF'
-table inet deadlock_server_picker {}
-delete table inet deadlock_server_picker
+table inet dsp_deadlock_server_picker {}
+delete table inet dsp_deadlock_server_picker
 EOF

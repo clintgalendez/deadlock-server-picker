@@ -94,8 +94,8 @@ There is **no evidence at all about Steam Deck / SteamOS** in any tracker. Treat
 
 1. **Our own namespace, removed in one pass.**
    - Windows: rule names `DeadlockServerPicker_<pop>_<dir>` plus the group `DeadlockServerPicker`.
-   - nftables: our own table `inet deadlock_server_picker`.
-   - iptables: our own chain `DEADLOCK_SERVER_PICKER`, with comment-tagged rules.
+   - nftables: our own table `inet dsp_deadlock_server_picker` (not `inet deadlock_server_picker`: shibne uses that name, see #46).
+   - iptables: our own chain `DSP_DEADLOCK_SERVER_PICKER` (shibne already uses `DEADLOCK_SERVER_PICKER`), with comment-tagged rules.
    - Everything is keyed by **PoP code**, never by description.
 2. **nftables first.** A `drop` in our own base chain is final, whatever accept rules ufw, firewalld or docker have in other tables. Apply it as one atomic `nft -f -` transaction.
 3. **iptables fallback.** The jump is inserted at position 1 of OUTPUT and INPUT. Use `-w` for the xtables lock and `iptables-restore --noflush` for atomic chain contents.
