@@ -25,7 +25,7 @@ public static class ExitCodes
     public const int NeedsElevation = 4;
 }
 
-public static class Cli
+public static partial class Cli
 {
     public const string LimitationsUrl = "https://github.com/clintgalendez/deadlock-server-picker/blob/main/docs/limitations.md";
 
@@ -38,14 +38,23 @@ public static class Cli
           list                 List PoPs grouped by region
           ping                 Ping one relay per PoP
           status               Show what is blocked, read from the firewall
+          block <pop|region>...      Block PoPs or whole regions (na eu asia sa oce me af)
+          unblock <pop|region>...    Unblock PoPs or regions; `unblock --all` unblocks everything
+          preset only-region <region>...   Block every PoP outside these regions
+          preset within <ms>         Block every PoP slower than <ms> (timeouts are left open)
+          preset unblock-all         Same as `unblock --all`
+          reset                Remove every firewall rule this tool created, nothing else
           version              Show version, config and log file paths
           help                 Show this help
 
         Options:
           --json               Machine-readable output
+          --dry-run            Print the exact firewall commands instead of running them (no admin needed)
           --app <id>           Steam app ID (default {AppInfo.DeadlockAppId} = Deadlock; 730 = Counter-Strike 2)
           --offline            Use the cached SDR config; don't download
           --backend <name>     Force the firewall backend: windows, nftables, iptables
+
+        Changing the firewall needs an elevated terminal (Windows) or sudo (Linux).
 
         Exit codes: 0 ok, 1 error, 2 usage, 3 SDR config unavailable, 4 needs admin/root
         Blocking is a strong nudge, not a guarantee: {LimitationsUrl}
@@ -74,10 +83,12 @@ public static class Cli
                 "list" => await ListAsync(args, env, ping: false, ct),
                 "ping" => await ListAsync(args, env, ping: true, ct),
                 "status" => await StatusAsync(args, env, ct),
+                "block" or "unblock" or "preset" => await ChangeAsync(args, env, ct),
+                "reset" => await ResetAsync(args, env, ct),
                 _ => throw new UsageException($"Unknown command '{args.Command}'. Run `dsp help`."),
             };
         }
-        catch (UsageException e)
+        catch (Exception e) when (e is UsageException or ArgumentException)
         {
             return Fail(args, env, e.Message, ExitCodes.Usage);
         }

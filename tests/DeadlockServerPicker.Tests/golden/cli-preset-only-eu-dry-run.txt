@@ -1,0 +1,164 @@
+Plan (nftables):
+  + block   atl    (4 IPs)
+  + block   bom2   (2 IPs)
+  + block   dfjr   (2 IPs)
+  + block   dfw    (4 IPs)
+  + block   dxb    (2 IPs)
+  + block   eze    (4 IPs)
+  + block   gru    (6 IPs)
+  + block   gum    (2 IPs)
+  + block   hkg    (10 IPs)
+  + block   iad    (4 IPs)
+  + block   jnb    (2 IPs)
+  + block   lax    (4 IPs)
+  + block   lim    (4 IPs)
+  + block   maa2   (2 IPs)
+  + block   ord    (4 IPs)
+  + block   scl    (2 IPs)
+  + block   sea    (2 IPs)
+  + block   seo    (4 IPs)
+  + block   sgp    (6 IPs)
+  + block   syd    (4 IPs)
+  + block   tyo    (6 IPs)
+warning: The relay list is from the cache and may be out of date; blocks use the cached relay IPs.
+
+Dry run, nothing was changed. These commands would run:
+nft -f - <<'EOF'
+table inet dsp_deadlock_server_picker {}
+delete table inet dsp_deadlock_server_picker
+table inet dsp_deadlock_server_picker {
+	set pop_atl {
+		type ipv4_addr
+		elements = { 162.254.199.170, 162.254.199.173, 162.254.199.178, 162.254.199.180 }
+	}
+	set pop_bom2 {
+		type ipv4_addr
+		elements = { 155.133.224.20, 155.133.224.21 }
+	}
+	set pop_dfjr {
+		type ipv4_addr
+		elements = { 89.222.117.194, 89.222.117.200 }
+	}
+	set pop_dfw {
+		type ipv4_addr
+		elements = { 162.254.194.37, 162.254.194.38, 162.254.194.53, 162.254.194.54 }
+	}
+	set pop_dxb {
+		type ipv4_addr
+		elements = { 185.25.183.163, 185.25.183.179 }
+	}
+	set pop_eze {
+		type ipv4_addr
+		elements = { 155.133.255.162, 155.133.255.163, 155.133.255.98, 155.133.255.99 }
+	}
+	set pop_gru {
+		type ipv4_addr
+		elements = { 155.133.227.35, 155.133.227.40, 155.133.227.41, 155.133.227.51, 155.133.227.56, 155.133.227.57 }
+	}
+	set pop_gum {
+		type ipv4_addr
+		elements = { 185.25.180.18, 185.25.180.19 }
+	}
+	set pop_hkg {
+		type ipv4_addr
+		elements = { 103.28.54.163, 103.28.54.164, 103.28.54.167, 103.28.54.172, 103.28.54.174, 103.28.54.179, 103.28.54.180, 103.28.54.183, 103.28.54.188, 103.28.54.189 }
+	}
+	set pop_iad {
+		type ipv4_addr
+		elements = { 162.254.192.102, 162.254.192.103, 162.254.192.88, 162.254.192.89 }
+	}
+	set pop_jnb {
+		type ipv4_addr
+		elements = { 155.133.238.178, 155.133.238.194 }
+	}
+	set pop_lax {
+		type ipv4_addr
+		elements = { 162.254.195.52, 162.254.195.53, 162.254.195.70, 162.254.195.72 }
+	}
+	set pop_lim {
+		type ipv4_addr
+		elements = { 155.133.244.35, 155.133.244.36, 155.133.244.51, 155.133.244.52 }
+	}
+	set pop_maa2 {
+		type ipv4_addr
+		elements = { 155.133.225.18, 155.133.225.19 }
+	}
+	set pop_ord {
+		type ipv4_addr
+		elements = { 162.254.193.71, 162.254.193.73, 162.254.193.98, 162.254.193.99 }
+	}
+	set pop_scl {
+		type ipv4_addr
+		elements = { 155.133.249.163, 155.133.249.179 }
+	}
+	set pop_sea {
+		type ipv4_addr
+		elements = { 205.196.6.135, 205.196.6.149 }
+	}
+	set pop_seo {
+		type ipv4_addr
+		elements = { 146.66.152.36, 146.66.152.37, 146.66.152.41, 146.66.152.42 }
+	}
+	set pop_sgp {
+		type ipv4_addr
+		elements = { 103.10.124.116, 103.10.124.117, 103.10.124.118, 103.10.124.119, 103.10.124.120, 103.10.124.121 }
+	}
+	set pop_syd {
+		type ipv4_addr
+		elements = { 103.10.125.20, 103.10.125.21, 103.10.125.40, 103.10.125.41 }
+	}
+	set pop_tyo {
+		type ipv4_addr
+		elements = { 45.121.184.24, 45.121.184.25, 45.121.184.26, 45.121.184.27, 45.121.184.5, 45.121.184.6 }
+	}
+	chain output {
+		type filter hook output priority 0; policy accept;
+		ip daddr @pop_atl drop
+		ip daddr @pop_bom2 drop
+		ip daddr @pop_dfjr drop
+		ip daddr @pop_dfw drop
+		ip daddr @pop_dxb drop
+		ip daddr @pop_eze drop
+		ip daddr @pop_gru drop
+		ip daddr @pop_gum drop
+		ip daddr @pop_hkg drop
+		ip daddr @pop_iad drop
+		ip daddr @pop_jnb drop
+		ip daddr @pop_lax drop
+		ip daddr @pop_lim drop
+		ip daddr @pop_maa2 drop
+		ip daddr @pop_ord drop
+		ip daddr @pop_scl drop
+		ip daddr @pop_sea drop
+		ip daddr @pop_seo drop
+		ip daddr @pop_sgp drop
+		ip daddr @pop_syd drop
+		ip daddr @pop_tyo drop
+	}
+	chain input {
+		type filter hook input priority 0; policy accept;
+		ip saddr @pop_atl drop
+		ip saddr @pop_bom2 drop
+		ip saddr @pop_dfjr drop
+		ip saddr @pop_dfw drop
+		ip saddr @pop_dxb drop
+		ip saddr @pop_eze drop
+		ip saddr @pop_gru drop
+		ip saddr @pop_gum drop
+		ip saddr @pop_hkg drop
+		ip saddr @pop_iad drop
+		ip saddr @pop_jnb drop
+		ip saddr @pop_lax drop
+		ip saddr @pop_lim drop
+		ip saddr @pop_maa2 drop
+		ip saddr @pop_ord drop
+		ip saddr @pop_scl drop
+		ip saddr @pop_sea drop
+		ip saddr @pop_seo drop
+		ip saddr @pop_sgp drop
+		ip saddr @pop_syd drop
+		ip saddr @pop_tyo drop
+	}
+}
+EOF
+tip: Also set Deadlock's own region preference: open the console (F7) and run `citadel_region_override 1` (Europe).

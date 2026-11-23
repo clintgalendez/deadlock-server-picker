@@ -1,0 +1,65 @@
+Plan (nftables):
+  + block   bom2   (2 IPs)
+  + block   gum    (2 IPs)
+  + block   hkg    (10 IPs)
+  + block   maa2   (2 IPs)
+  + block   seo    (4 IPs)
+  + block   sgp    (6 IPs)
+  + block   tyo    (6 IPs)
+warning: The relay list is from the cache and may be out of date; blocks use the cached relay IPs.
+
+Dry run, nothing was changed. These commands would run:
+nft -f - <<'EOF'
+table inet dsp_deadlock_server_picker {}
+delete table inet dsp_deadlock_server_picker
+table inet dsp_deadlock_server_picker {
+	set pop_bom2 {
+		type ipv4_addr
+		elements = { 155.133.224.20, 155.133.224.21 }
+	}
+	set pop_gum {
+		type ipv4_addr
+		elements = { 185.25.180.18, 185.25.180.19 }
+	}
+	set pop_hkg {
+		type ipv4_addr
+		elements = { 103.28.54.163, 103.28.54.164, 103.28.54.167, 103.28.54.172, 103.28.54.174, 103.28.54.179, 103.28.54.180, 103.28.54.183, 103.28.54.188, 103.28.54.189 }
+	}
+	set pop_maa2 {
+		type ipv4_addr
+		elements = { 155.133.225.18, 155.133.225.19 }
+	}
+	set pop_seo {
+		type ipv4_addr
+		elements = { 146.66.152.36, 146.66.152.37, 146.66.152.41, 146.66.152.42 }
+	}
+	set pop_sgp {
+		type ipv4_addr
+		elements = { 103.10.124.116, 103.10.124.117, 103.10.124.118, 103.10.124.119, 103.10.124.120, 103.10.124.121 }
+	}
+	set pop_tyo {
+		type ipv4_addr
+		elements = { 45.121.184.24, 45.121.184.25, 45.121.184.26, 45.121.184.27, 45.121.184.5, 45.121.184.6 }
+	}
+	chain output {
+		type filter hook output priority 0; policy accept;
+		ip daddr @pop_bom2 drop
+		ip daddr @pop_gum drop
+		ip daddr @pop_hkg drop
+		ip daddr @pop_maa2 drop
+		ip daddr @pop_seo drop
+		ip daddr @pop_sgp drop
+		ip daddr @pop_tyo drop
+	}
+	chain input {
+		type filter hook input priority 0; policy accept;
+		ip saddr @pop_bom2 drop
+		ip saddr @pop_gum drop
+		ip saddr @pop_hkg drop
+		ip saddr @pop_maa2 drop
+		ip saddr @pop_seo drop
+		ip saddr @pop_sgp drop
+		ip saddr @pop_tyo drop
+	}
+}
+EOF
