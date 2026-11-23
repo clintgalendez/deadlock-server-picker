@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DeadlockServerPicker.Cli/DeadlockServerPicker.Cli.csproj" />
+    <Project Path="src/DeadlockServerPicker.Core/DeadlockServerPicker.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DeadlockServerPicker.Tests/DeadlockServerPicker.Tests.csproj" />
+  </Folder>
+</Solution>

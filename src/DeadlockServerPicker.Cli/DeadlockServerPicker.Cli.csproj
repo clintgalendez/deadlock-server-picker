@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>dsp</AssemblyName>
+    <RootNamespace>DeadlockServerPicker.Cli</RootNamespace>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DeadlockServerPicker.Core\DeadlockServerPicker.Core.csproj" />
+  </ItemGroup>
+</Project>

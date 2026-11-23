@@ -1,0 +1,21 @@
+# Mirror only. GitHub Actions is disabled for this repo; the merge gate is the
+# `local-ci` commit status posted by scripts/ci from the maintainer machine.
+# This file exists so `act` can run the same target locally:
+#   act pull_request -s GITHUB_TOKEN="$(gh auth token)"
+# and so CI works unchanged if Actions is ever re-enabled. Never depend on it.
+name: ci
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - run: just ci

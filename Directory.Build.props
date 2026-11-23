@@ -1,0 +1,26 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <DebugType>embedded</DebugType>
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <Version>0.0.0-dev</Version>
+    <Authors>Deadlock Server Picker contributors</Authors>
+    <Product>Deadlock Server Picker</Product>
+    <Copyright>Copyright (c) 2026 Deadlock Server Picker contributors</Copyright>
+  </PropertyGroup>
+</Project>
