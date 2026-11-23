@@ -53,6 +53,10 @@ This tool never changes it for you; it only shows the matching command as a tip.
 
 Design records: [docs/adr](docs/adr). Prior art and lessons learned: [docs/research.md](docs/research.md).
 
+## Install
+
+Download the archive for your OS from [Releases](https://github.com/clintgalendez/deadlock-server-picker/releases), verify it, and extract it anywhere. See [docs/install.md](docs/install.md) for checksums, SmartScreen and antivirus warnings (the binaries are unsigned), Linux notes and uninstalling.
+
 ## Usage (CLI)
 
 ```

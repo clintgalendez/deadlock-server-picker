@@ -20,7 +20,7 @@ if [ "${1:-}" != "--inner" ]; then
         exec sudo bash scripts/integration-linux --inner "$PWD"
     fi
     export MSYS_NO_PATHCONV=1
-    exec wsl.exe -d "${DSP_WSL_DISTRO:-Ubuntu}" -u root -- bash -c 'cd "$(wslpath -a "$1")" && bash scripts/integration-linux --inner "$PWD"' _ "$(cygpath -m "$PWD")"
+    exec wsl.exe -d "${DSP_WSL_DISTRO:-Ubuntu}" -u root --exec bash -c 'cd "$(wslpath -a "$1")" && bash scripts/integration-linux --inner "$PWD"' _ "$(cygpath -m "$PWD")"
 fi
 
 # ---- inner: root on Linux -------------------------------------------------------------

@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Local release pipeline (GitHub Actions is not used).
+#
+#   scripts/release prepare vX.Y.Z   1. branch chore/release-vX.Y.Z, regenerate CHANGELOG.md with
+#                                       git-cliff, open a PR. Run scripts/ci on it and merge it.
+#   scripts/release vX.Y.Z [--final] [--dry-run]
+#                                    2. from an up-to-date main: verify, `just ci`, build both
+#                                       targets with the version stamped in, package, SHA256SUMS,
+#                                       annotated tag, push the tag, `gh release create`.
+#
+# Releases are pre-releases unless --final is given, and --final is refused while any
+# `needs-manual-test` issue is open (the maintainer's in-game checklist gates 1.0).
+# Auth comes from the gh CLI (`gh auth token`); no token is ever written to the repo.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+die() { echo "scripts/release: $*" >&2; exit 1; }
+usage() { die "usage: scripts/release prepare vX.Y.Z | scripts/release vX.Y.Z [--final] [--dry-run]"; }
+
+mode=publish
+if [ "${1:-}" = prepare ]; then mode=prepare; shift; fi
+tag=${1:-}; [ -n "$tag" ] || usage
+final=0; dry=0
+for flag in "${@:2}"; do
+    case "$flag" in
+        --final) final=1 ;;
+        --dry-run) dry=1 ;; # build + package + notes only; no tag, push or release
+        *) usage ;;
+    esac
+done
+[[ "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || die "tag must look like v1.2.3, got '$tag'"
+version=${tag#v}
+command -v git-cliff >/dev/null || die "git-cliff is required (winget install orhun.git-cliff / cargo install git-cliff)"
+export GITHUB_TOKEN="${GITHUB_TOKEN:-$(gh auth token)}" # in-process only, for gh and git-cliff
+
+[ -z "$(git status --porcelain)" ] || die "working tree is dirty"
+git fetch -q origin main --tags
+git rev-parse -q --verify "refs/tags/$tag" >/dev/null && die "tag $tag already exists locally"
+git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1 && die "tag $tag already exists on origin"
+
+if [ "$mode" = prepare ]; then
+    branch="chore/release-$tag"
+    git checkout -q -b "$branch" origin/main
+    git-cliff --tag "$tag" -o CHANGELOG.md 2>/dev/null
+    git add CHANGELOG.md
+    git commit -q -m "chore(release): $tag"
+    git push -q -u origin "$branch"
+    git-cliff --unreleased --tag "$tag" --strip header 2>/dev/null > "${TMPDIR:-/tmp}/release-notes.md"
+    gh pr create --title "chore(release): $tag" --body-file - <<EOF
+Prepares $tag: regenerates CHANGELOG.md with git-cliff.
+
+After merging, cut the release from main with \`scripts/release $tag\`.
+
+$(cat "${TMPDIR:-/tmp}/release-notes.md")
+EOF
+    echo "next: scripts/ci on this branch, merge, then: git checkout main && git pull && scripts/release $tag"
+    exit 0
+fi
+
+# ---- publish ----------------------------------------------------------------------------
+if [ "$dry" = 0 ]; then
+    [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || die "release from main"
+    [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || die "main is not up to date with origin/main (git pull)"
+    grep -q "^## \[$version\]" CHANGELOG.md || die "CHANGELOG.md has no [$version] section; run scripts/release prepare $tag first"
+fi
+if [ "$final" = 1 ]; then
+    open_manual=$(gh issue list --label needs-manual-test --state open --json number --jq 'map(.number) | join(", ")')
+    [ -z "$open_manual" ] || die "refusing --final: needs-manual-test issues still open: $open_manual"
+fi
+
+echo "==> just ci"
+just ci
+
+echo "==> build $version"
+rm -rf artifacts/publish artifacts/release
+DSP_VERSION="$version" just build
+out=artifacts/release
+mkdir -p "$out"
+name="deadlock-server-picker_${version}"
+
+stage() { # rid -> staging dir with binaries + docs
+    local dir="artifacts/stage/$1"
+    rm -rf "$dir"; mkdir -p "$dir"
+    cp artifacts/publish/"$1"/* "$dir"/
+    cp README.md LICENSE "$dir"/
+    cp docs/limitations.md "$dir"/LIMITATIONS.md
+    echo "$dir"
+}
+
+win=$(stage win-x64)
+if command -v zip >/dev/null; then
+    (cd "$win" && zip -qr "../../release/${name}_windows_amd64.zip" .)
+else
+    powershell.exe -NoProfile -Command "Compress-Archive -Path '$(cygpath -w "$win")\\*' -DestinationPath '$(cygpath -w "$out")\\${name}_windows_amd64.zip' -Force"
+fi
+
+lin=$(stage linux-x64)
+# Executables get 0755 and everything else 0644, even when packing on Windows (NTFS has no exec bit).
+tar_args=(--owner=0 --group=0 --numeric-owner)
+(
+    cd "$lin"
+    execs=$(find . -maxdepth 1 -type f ! -name '*.md' ! -name LICENSE | sed 's#^\./##' | sort)
+    tar "${tar_args[@]}" --mode=0644 -cf "../../release/${name}_linux_amd64.tar" README.md LICENSE LIMITATIONS.md
+    # shellcheck disable=SC2086
+    tar "${tar_args[@]}" --mode=0755 -rf "../../release/${name}_linux_amd64.tar" $execs
+)
+gzip -9 -f "$out/${name}_linux_amd64.tar"
+
+(cd "$out" && sha256sum ./*.zip ./*.tar.gz | sed 's#\./##' > SHA256SUMS)
+cat "$out/SHA256SUMS"
+
+notes="$out/notes.md"
+{
+    git-cliff --unreleased --tag "$tag" --strip header 2>/dev/null || true
+    cat <<EOF
+
+---
+
+### Downloads
+- **Windows 10/11 x64:** \`${name}_windows_amd64.zip\`
+- **Linux x64:** \`${name}_linux_amd64.tar.gz\`
+
+Both contain portable single-file binaries. No installer, no runtime needed. See [Install](https://github.com/clintgalendez/deadlock-server-picker/blob/main/docs/install.md) for checksum verification, SmartScreen/antivirus warnings (the binaries are not code-signed), and building from source.
+
+**Blocking is a strong nudge, not a guarantee:** read the [limitations](https://github.com/clintgalendez/deadlock-server-picker/blob/main/docs/limitations.md).
+EOF
+    if [ "$final" = 0 ]; then
+        cat <<EOF
+
+> **Pre-release:** this build has not yet been through the maintainer's real-hardware and in-game checklist ([docs/manual-testing.md](https://github.com/clintgalendez/deadlock-server-picker/blob/main/docs/manual-testing.md)).
+EOF
+    fi
+} > "$notes"
+
+if [ "$dry" = 1 ]; then
+    echo "dry run: artifacts and notes are in $out; no tag, push or release"
+    exit 0
+fi
+
+echo "==> tag $tag"
+git tag -a "$tag" -m "$tag"
+git push -q origin "$tag"
+
+echo "==> gh release create $tag"
+prerelease=(--prerelease); [ "$final" = 1 ] && prerelease=()
+gh release create "$tag" "${prerelease[@]}" --title "$tag" --notes-file "$notes" \
+    "$out/${name}_windows_amd64.zip" "$out/${name}_linux_amd64.tar.gz" "$out/SHA256SUMS"
+echo "released $tag"
