@@ -28,6 +28,19 @@ public sealed record VersionDto(string Version, string ConfigDir, string? LogFil
 
 public sealed record ErrorDto(string Error, int ExitCode);
 
+public sealed record PopChangeDto(string Pop, string Kind, IReadOnlyList<string> AddIps, IReadOnlyList<string> RemoveIps);
+
+public sealed record ChangeDto(
+    string Backend,
+    bool DryRun,
+    bool Applied,
+    IReadOnlyList<PopChangeDto> Changes,
+    IReadOnlyList<string> Commands,
+    IReadOnlyList<string> Blocked,
+    IReadOnlyList<string> Notes,
+    IReadOnlyList<string> Warnings,
+    string? Tip);
+
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
@@ -36,4 +49,5 @@ public sealed record ErrorDto(string Error, int ExitCode);
 [JsonSerializable(typeof(StatusDto))]
 [JsonSerializable(typeof(VersionDto))]
 [JsonSerializable(typeof(ErrorDto))]
+[JsonSerializable(typeof(ChangeDto))]
 internal sealed partial class CliJson : JsonSerializerContext;
