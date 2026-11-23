@@ -27,11 +27,13 @@ public sealed class SdrConfigSource(HttpClient http, string cacheDir)
                 var body = await http.GetStringAsync(Url(appId), ct);
                 var fresh = SdrConfig.Parse(body); // validate before it can replace the last good copy
                 WriteCache(appId, body);
+                Log.Info($"SDR config app={appId} revision={fresh.Revision} pops={fresh.Pops.Count} downloaded");
                 return new LoadedConfig(fresh, appId, DateTimeOffset.UtcNow, null);
             }
             catch (Exception e) when (!ct.IsCancellationRequested && e is HttpRequestException or TaskCanceledException or FormatException or JsonException)
             {
                 error = e.Message;
+                Log.Warn($"SDR config app={appId} download failed, using cache if present: {e}");
             }
         }
 
