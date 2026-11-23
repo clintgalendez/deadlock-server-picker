@@ -1,0 +1,30 @@
+nft -f - <<'EOF'
+table inet deadlock_server_picker {}
+delete table inet deadlock_server_picker
+table inet deadlock_server_picker {
+	set pop_ams {
+		type ipv4_addr
+		elements = { 155.133.248.36, 155.133.248.37 }
+	}
+	set pop_fra {
+		type ipv4_addr
+		elements = { 155.133.226.68, 155.133.226.69 }
+	}
+	set pop_sgp {
+		type ipv4_addr
+		elements = { 103.10.124.116 }
+	}
+	chain output {
+		type filter hook output priority 0; policy accept;
+		ip daddr @pop_ams drop
+		ip daddr @pop_fra drop
+		ip daddr @pop_sgp drop
+	}
+	chain input {
+		type filter hook input priority 0; policy accept;
+		ip saddr @pop_ams drop
+		ip saddr @pop_fra drop
+		ip saddr @pop_sgp drop
+	}
+}
+EOF
