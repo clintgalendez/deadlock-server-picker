@@ -31,7 +31,8 @@ public sealed partial class IptablesBackend(ICommandRunner runner) : IFirewallBa
 
     public static FirewallState Parse(string listRules)
     {
-        var hooks = new HashSet<string>(StringComparer.Ordinal);
+        var hooks = new List<string>();
+        var present = false;
         var b = new StateBuilder();
         var rules = new List<(string Pop, string Ip, bool Inbound)>();
         foreach (var line in listRules.Split('\n', StringSplitOptions.TrimEntries))
@@ -58,6 +59,12 @@ public sealed partial class IptablesBackend(ICommandRunner runner) : IFirewallBa
             foreach (var missing in HookChains.Where(h => !hooks.Contains(h)))
                 b.Warnings.Add($"The jump from {missing} to {Chain} is missing, so those rules are not enforced; re-apply to repair.");
         }
-        return b.Build(hooks);
+        return b.Build(present || hooks.Count > 0, hooks);
     }
+
+    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired) =>
+        throw new NotSupportedException("iptables apply lands with #15.");
+
+    public IReadOnlyList<Command> PlanReset(FirewallState current) =>
+        throw new NotSupportedException("iptables reset lands with #15.");
 }

@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -6,7 +7,8 @@ namespace DeadlockServerPicker.Core.Firewall;
 /// <summary>
 /// Windows Defender Firewall through the NetSecurity PowerShell module (ADR 0002).
 /// One PowerShell process per operation; the script goes in on stdin; state comes back as JSON,
-/// which is identical on every Windows display language.
+/// which is identical on every Windows display language. Per blocked PoP there are two rules,
+/// <c>DeadlockServerPicker_&lt;pop&gt;_out</c> and <c>_in</c>, in group <c>DeadlockServerPicker</c>.
 /// </summary>
 public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string powershell = "powershell.exe") : IFirewallBackend
 {
@@ -34,6 +36,11 @@ public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string
 
         """;
 
+    private const string ResetBody = """
+        Get-NetFirewallRule -Group 'DeadlockServerPicker' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'DeadlockServerPicker_*' } | Remove-NetFirewallRule
+
+        """;
+
     public Command Script(string body) => new(
         powershell,
         ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "& ([scriptblock]::Create([Console]::In.ReadToEnd()))"],
@@ -49,24 +56,71 @@ public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string
         return ParseRead(r.Stdout);
     }
 
+    public static string RuleName(string pop, bool inbound) => $"{Prefix}{pop}_{(inbound ? "in" : "out")}";
+
+    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired)
+    {
+        var changes = Planner.Diff(current, desired);
+        if (changes.Count == 0)
+            return [];
+
+        // Every changed PoP is removed first (also clears half-applied or malformed leftovers), then
+        // the desired rules are created. All inside one script so it runs in one PowerShell process.
+        var sb = new StringBuilder();
+        sb.Append("Remove-NetFirewallRule -ErrorAction SilentlyContinue -Name @(")
+          .AppendJoin(", ", changes.SelectMany(c => new[] { Quote(RuleName(c.Pop, false)), Quote(RuleName(c.Pop, true)) }))
+          .Append(")\n");
+        foreach (var c in changes.Where(c => c.Kind != ChangeKind.Remove))
+        {
+            foreach (var inbound in new[] { false, true })
+            {
+                sb.Append("New-NetFirewallRule")
+                  .Append(" -Name ").Append(Quote(RuleName(c.Pop, inbound)))
+                  .Append(" -DisplayName ").Append(Quote(Prefix + c.Pop))
+                  .Append(" -Group ").Append(Quote(Group))
+                  .Append(" -Description ").Append(Quote($"Blocks Steam Datagram Relay PoP {c.Pop}. Added by Deadlock Server Picker; remove with: dsp reset"))
+                  .Append(" -Direction ").Append(inbound ? "Inbound" : "Outbound")
+                  .Append(" -Action Block -Protocol Any -Profile Any -Enabled True")
+                  .Append(" -RemoteAddress @(").AppendJoin(", ", c.After.Select(Quote)).Append(')')
+                  .Append(" | Out-Null\n");
+            }
+        }
+        return [Script(sb.ToString())];
+    }
+
+    public IReadOnlyList<Command> PlanReset(FirewallState current) => current.Present ? [Script(ResetBody)] : [];
+
+    /// <summary>
+    /// Single-quoted PowerShell literal. Inputs are already validated (PoP codes [a-z0-9], dotted-quad
+    /// IPs, constant text), so this is defence in depth.
+    /// </summary>
+    private static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
+
     [GeneratedRegex("^DeadlockServerPicker_([a-z0-9]{2,16})_(in|out)$")]
-    private static partial Regex RuleName();
+    private static partial Regex RuleNamePattern();
 
     public static FirewallState ParseRead(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var b = new StateBuilder();
-        foreach (var rule in doc.RootElement.GetProperty("Rules").EnumerateArray())
+        var rules = doc.RootElement.GetProperty("Rules");
+        foreach (var rule in rules.EnumerateArray())
         {
-            var m = RuleName().Match(rule.GetProperty("Name").GetString() ?? "");
+            var name = rule.GetProperty("Name").GetString() ?? "";
+            var m = RuleNamePattern().Match(name);
             if (!m.Success)
+            {
+                b.Warnings.Add($"Unrecognised rule '{name}' in group {Group}; `dsp reset` removes it.");
                 continue;
+            }
+            var pop = m.Groups[1].Value;
+            b.Touch(pop);
             foreach (var remote in rule.GetProperty("Remote").EnumerateArray())
             {
                 if (FirewallText.HostIp(remote.GetString() ?? "") is { } ip)
-                    b.Add(m.Groups[1].Value, ip, inbound: m.Groups[2].Value == "in");
+                    b.Add(pop, ip, inbound: m.Groups[2].Value == "in");
                 else
-                    b.Warnings.Add($"{m.Groups[1].Value}: unexpected remote address '{remote.GetString()}' in rule {m.Value}; re-apply to repair.");
+                    b.Warnings.Add($"{pop}: unexpected remote address '{remote.GetString()}' in rule {name}; re-apply to repair.");
             }
         }
         foreach (var p in doc.RootElement.GetProperty("Profiles").EnumerateArray())
@@ -74,6 +128,6 @@ public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string
             if (p.GetProperty("Enabled").GetString() != "True")
                 b.Warnings.Add($"Windows Defender Firewall is OFF for the {p.GetProperty("Name").GetString()} profile; rules are not enforced there.");
         }
-        return b.Build();
+        return b.Build(present: rules.GetArrayLength() > 0);
     }
 }

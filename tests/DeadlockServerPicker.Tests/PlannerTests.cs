@@ -12,7 +12,7 @@ public class PlannerTests
     private static FirewallState State(params (string Pop, IEnumerable<string> Ips)[] pops) => new(
         pops.ToDictionary(p => p.Pop, p => (IReadOnlySet<string>)new SortedSet<string>(p.Ips, StringComparer.Ordinal)),
         [],
-        new HashSet<string>());
+        []);
 
     [Fact]
     public void ResolvesCodesAliasesAndRegions()

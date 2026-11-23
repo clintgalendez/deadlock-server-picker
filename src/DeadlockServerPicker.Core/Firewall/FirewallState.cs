@@ -4,14 +4,17 @@ namespace DeadlockServerPicker.Core.Firewall;
 /// What the firewall itself says is blocked, read only from our namespace.
 /// <see cref="Blocked"/> holds, per PoP code, the IPs that are blocked in BOTH directions and actually
 /// hooked in; a PoP whose rules are incomplete appears with fewer (or zero) IPs plus a warning, so the
-/// planner re-applies it.
+/// planner re-applies it. <see cref="Present"/> is true when anything of ours exists (table, chain,
+/// rules), even if unparseable, so reset knows there is something to remove. <see cref="Hooks"/> lists
+/// iptables jumps into our chain, one entry per jump rule (duplicates included).
 /// </summary>
 public sealed record FirewallState(
     IReadOnlyDictionary<string, IReadOnlySet<string>> Blocked,
     IReadOnlyList<string> Warnings,
-    IReadOnlySet<string> Hooks)
+    IReadOnlyList<string> Hooks,
+    bool Present = true)
 {
-    public static FirewallState Empty { get; } = new(new Dictionary<string, IReadOnlySet<string>>(), [], new HashSet<string>());
+    public static FirewallState Empty { get; } = new(new Dictionary<string, IReadOnlySet<string>>(), [], [], Present: false);
 }
 
 public sealed class FirewallException(string message) : Exception(message);
@@ -22,6 +25,12 @@ public interface IFirewallBackend
     string Name { get; }
 
     Task<FirewallState> ReadAsync(CancellationToken ct = default);
+
+    /// <summary>Commands that turn <paramref name="current"/> into <paramref name="desired"/>; empty when nothing changes.</summary>
+    IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired);
+
+    /// <summary>Commands that remove everything in our namespace and nothing else; empty when nothing is there.</summary>
+    IReadOnlyList<Command> PlanReset(FirewallState current);
 }
 
 /// <summary>Collects per-direction IPs per PoP and turns them into a <see cref="FirewallState"/>.</summary>
@@ -38,7 +47,14 @@ internal sealed class StateBuilder
         (inbound ? sets.In : sets.Out).Add(ip);
     }
 
-    public FirewallState Build(IReadOnlySet<string>? hooks = null)
+    /// <summary>Registers a PoP whose rules exist but carry no usable IPs, so it shows up as incomplete.</summary>
+    public void Touch(string pop)
+    {
+        if (!_pops.ContainsKey(pop))
+            _pops[pop] = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal));
+    }
+
+    public FirewallState Build(bool present, IReadOnlyList<string>? hooks = null)
     {
         var blocked = new SortedDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal);
         foreach (var (pop, (inbound, outbound)) in _pops)
@@ -49,7 +65,7 @@ internal sealed class StateBuilder
                 Warnings.Add($"{pop}: inbound and outbound rules differ (in {inbound.Count}, out {outbound.Count} IPs); re-apply to repair.");
             blocked[pop] = both;
         }
-        return new FirewallState(blocked, Warnings, hooks ?? new HashSet<string>());
+        return new FirewallState(blocked, Warnings, hooks ?? [], present);
     }
 }
 
