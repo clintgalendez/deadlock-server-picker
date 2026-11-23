@@ -1,0 +1,4 @@
+Firewall backend: nftables
+Blocked PoPs (2):
+  ams    4 IPs
+  sgp    1 IP | relay IPs changed since blocking: run `dsp block sgp` again to re-apply

@@ -131,6 +131,12 @@
       },
       "deadlockserverpicker.core": {
         "type": "Project"
+      },
+      "dsp": {
+        "type": "Project",
+        "dependencies": {
+          "DeadlockServerPicker.Core": "[0.0.0-dev, )"
+        }
       }
     },
     "net10.0/linux-x64": {

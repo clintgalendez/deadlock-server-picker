@@ -9,8 +9,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\DeadlockServerPicker.Core\DeadlockServerPicker.Core.csproj" />
+    <ProjectReference Include="..\..\src\DeadlockServerPicker.Cli\DeadlockServerPicker.Cli.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="fixtures/**;golden/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

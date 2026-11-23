@@ -1,0 +1,52 @@
+Deadlock (app 1422450) | SDR revision 1794268433 | fetched 2026-11-24 06:45 UTC | STALE
+
+North America
+  atl    Atlanta (Georgia)                        120 ms
+  dfw    Dallas (Texas)                           120 ms
+  iad    Sterling (Virginia)                      120 ms
+  lax    Los Angeles (California)                 120 ms
+  ord    Chicago (Illinois)                       120 ms
+  sea    Seattle (Washington)                     120 ms
+  eat    Wenatchee (Washington)                   not blockable (no public relays) | reached via sea (3 ms)
+
+Europe
+  ams    Amsterdam (Netherlands)                  30 ms
+  fra    Frankfurt (Germany)                      30 ms
+  mad    Madrid (Spain)                           30 ms
+  sto2   Stockholm - Bromma (Sweden)              30 ms
+  waw    Warsaw (Poland)                          30 ms
+  dfra   Datapacket Frankfurt (Germany)           120 ms
+  dlhr   Datapacket London (England)              120 ms
+  dvie   Datapacket Vienna (Austria)              120 ms
+  lhr    London (England)                         120 ms
+  par    Paris (France)                           120 ms
+  sto    Stockholm - Kista (Sweden)               120 ms
+  vie    Vienna (Austria)                         120 ms
+  dsto   Datapacket Stockholm (Sweden)            not blockable (no public relays) | reached via sto (12 ms), sto2 (12 ms)
+  fsn    Hetzner Falkenstein (Germany)            not blockable (no public relays) | reached via dfra (5 ms), fra (5 ms), vie (7 ms), ams (11 ms), waw (14 ms)
+  hel    Hetzner Helsinki (Finland)               not blockable (no public relays) | reached via sto (7 ms), sto2 (8 ms)
+
+Asia
+  bom2   Mumbai (India)                           30 ms
+  maa2   Chennai - Ambattur (India)               30 ms
+  gum    Guam                                     120 ms
+  seo    Seoul (South Korea)                      120 ms
+  tyo    Tokyo Koto City (Japan)                  120 ms
+  hkg    Hong Kong                                timeout
+  sgp    Singapore                                timeout
+
+South America
+  eze    Buenos Aires (Argentina)                 30 ms
+  gru    Sao Paulo (Brazil)                       30 ms
+  lim    Lima (Peru)                              30 ms
+  scl    Santiago (Chile)                         30 ms
+
+Oceania
+  syd    Sydney (Australia)                       timeout
+
+Middle East
+  dfjr   Datapacket Fujairah (UAE)                120 ms
+  dxb    Dubai (United Arab Emirates)             120 ms
+
+Africa
+  jnb    Johannesburg (South Africa)              30 ms
