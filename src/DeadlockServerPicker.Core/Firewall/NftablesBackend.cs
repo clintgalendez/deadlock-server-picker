@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace DeadlockServerPicker.Core.Firewall;
@@ -74,9 +75,48 @@ public sealed partial class NftablesBackend(ICommandRunner runner) : IFirewallBa
         return b.Build(present: true);
     }
 
-    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired) =>
-        throw new NotSupportedException("nftables apply lands with #14.");
+
+    /// <summary>Create-then-delete makes the delete safe when the table is absent (works before nft 1.0.8's `destroy`).</summary>
+    private const string DropTable = "table inet " + Table + " {}\ndelete table inet " + Table + "\n";
+
+    /// <summary>
+    /// Regenerates the whole table from the desired state and swaps it in as one atomic `nft -f -`
+    /// transaction. Unblocking everything removes the table entirely, leaving no trace.
+    /// </summary>
+    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired)
+    {
+        if (desired.Blocked.Count == 0)
+            return PlanReset(current);
+        if (Planner.Diff(current, desired).Count == 0)
+            return [];
+        return [new Command("nft", ["-f", "-"], DropTable + Ruleset(desired))];
+    }
 
     public IReadOnlyList<Command> PlanReset(FirewallState current) =>
-        throw new NotSupportedException("nftables reset lands with #14.");
+        current.Present ? [new Command("nft", ["-f", "-"], DropTable)] : [];
+
+    public static string Ruleset(DesiredState desired)
+    {
+        var sb = new StringBuilder();
+        sb.Append("table inet ").Append(Table).Append(" {\n");
+        foreach (var (pop, ips) in desired.Blocked)
+        {
+            sb.Append("\tset pop_").Append(pop).Append(" {\n")
+              .Append("\t\ttype ipv4_addr\n")
+              .Append("\t\telements = { ").AppendJoin(", ", ips).Append(" }\n")
+              .Append("\t}\n");
+        }
+        AppendChain(sb, "output", "daddr", desired);
+        AppendChain(sb, "input", "saddr", desired);
+        return sb.Append("}\n").ToString();
+    }
+
+    private static void AppendChain(StringBuilder sb, string hook, string match, DesiredState desired)
+    {
+        sb.Append("\tchain ").Append(hook).Append(" {\n")
+          .Append("\t\ttype filter hook ").Append(hook).Append(" priority 0; policy accept;\n");
+        foreach (var pop in desired.Blocked.Keys)
+            sb.Append("\t\tip ").Append(match).Append(" @pop_").Append(pop).Append(" drop\n");
+        sb.Append("\t}\n");
+    }
 }
