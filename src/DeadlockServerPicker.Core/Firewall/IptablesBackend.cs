@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace DeadlockServerPicker.Core.Firewall;
@@ -62,9 +63,44 @@ public sealed partial class IptablesBackend(ICommandRunner runner) : IFirewallBa
         return b.Build(present || hooks.Count > 0, hooks);
     }
 
-    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired) =>
-        throw new NotSupportedException("iptables apply lands with #15.");
+    /// <summary>
+    /// Replaces our chain's contents atomically with <c>iptables-restore --noflush</c> (declaring the
+    /// chain creates it or, if it exists, flushes it), then inserts the jumps at position 1 of OUTPUT and
+    /// INPUT only where the read showed them missing. Unblocking everything removes chain and jumps.
+    /// </summary>
+    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired)
+    {
+        if (desired.Blocked.Count == 0)
+            return PlanReset(current);
+        var missingHooks = HookChains.Where(h => !current.Hooks.Contains(h)).ToList();
+        if (Planner.Diff(current, desired).Count == 0 && missingHooks.Count == 0)
+            return [];
 
-    public IReadOnlyList<Command> PlanReset(FirewallState current) =>
-        throw new NotSupportedException("iptables reset lands with #15.");
+        var sb = new StringBuilder("*filter\n");
+        sb.Append(':').Append(Chain).Append(" - [0:0]\n");
+        sb.Append("-F ").Append(Chain).Append('\n');
+        foreach (var (pop, ips) in desired.Blocked)
+        {
+            foreach (var ip in ips)
+            {
+                sb.Append($"-A {Chain} -d {ip}/32 -m comment --comment dsp:{pop} -j DROP\n");
+                sb.Append($"-A {Chain} -s {ip}/32 -m comment --comment dsp:{pop} -j DROP\n");
+            }
+        }
+        sb.Append("COMMIT\n");
+
+        var commands = new List<Command> { new("iptables-restore", ["-w", "--noflush"], sb.ToString()) };
+        commands.AddRange(missingHooks.Select(h => new Command("iptables", ["-w", "-I", h, "1", "-j", Chain])));
+        return commands;
+    }
+
+    public IReadOnlyList<Command> PlanReset(FirewallState current)
+    {
+        if (!current.Present)
+            return [];
+        var commands = current.Hooks.Select(h => new Command("iptables", ["-w", "-D", h, "-j", Chain])).ToList();
+        commands.Add(new Command("iptables", ["-w", "-F", Chain]));
+        commands.Add(new Command("iptables", ["-w", "-X", Chain]));
+        return commands;
+    }
 }
