@@ -65,6 +65,6 @@ integration-linux:
 ci: fmt-check lint test build audit
     @echo "just ci: all steps passed"
 
-# Cut a release (see scripts/release)
-release tag:
-    scripts/release {{tag}}
+# Release (see scripts/release): `just release prepare v0.1.0`, then `just release v0.1.0`
+release *args:
+    bash scripts/release {{args}}
