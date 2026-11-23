@@ -35,8 +35,8 @@ just --list
 
 - Only ever touch entries in our namespace:
   - Windows: rules named `DeadlockServerPicker_*` in group `DeadlockServerPicker`
-  - nftables: table `inet deadlock_server_picker`
-  - iptables: chain `DEADLOCK_SERVER_PICKER` and the jumps to it
+  - nftables: table `inet dsp_deadlock_server_picker`
+  - iptables: chain `DSP_DEADLOCK_SERVER_PICKER` and the jumps to it
 - `reset` must leave zero traces. The Linux integration test checks this.
 - Backends only produce commands. Execution goes through the injectable runner, and unit tests compare generated commands with golden files in `tests/DeadlockServerPicker.Tests/golden/`. To update the golden files after an intended change, run `DSP_UPDATE_GOLDEN=1 just test` and review the diff.
 - Never parse localized command output.

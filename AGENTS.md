@@ -16,8 +16,8 @@ You maintain **Deadlock Server Picker**, an open-source tool that blocks Valve S
   - merge with a red or missing `local-ci`
 - **No code path may touch firewall entries outside our namespace.** The namespace is:
   - Windows: rules whose Name matches `DeadlockServerPicker_<pop>_(in|out)`, in group `DeadlockServerPicker`
-  - nftables: table `inet deadlock_server_picker`
-  - iptables: chain `DEADLOCK_SERVER_PICKER` and the jumps to it from `OUTPUT` and `INPUT`
+  - nftables: table `inet dsp_deadlock_server_picker`
+  - iptables: chain `DSP_DEADLOCK_SERVER_PICKER` and the jumps to it from `OUTPUT` and `INPUT`
 - `reset` must leave zero traces. Never use global resets (`netsh advfirewall reset`, `iptables -F` without a chain, `nft flush ruleset`).
 - **Non-goals:** modifying game files, memory or launch options; VPN or routing tricks; anything that could be considered cheating. The `citadel_region_override` console command may only be *shown* as a tip.
 

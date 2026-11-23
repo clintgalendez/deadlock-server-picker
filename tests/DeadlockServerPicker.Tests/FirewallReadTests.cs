@@ -47,11 +47,11 @@ public class FirewallReadTests
 
     // ---- nftables ------------------------------------------------------------------------
 
-    private const string NftTables = "table inet other_tool\ntable inet deadlock_server_picker\n";
+    private const string NftTables = "table inet other_tool\ntable inet dsp_deadlock_server_picker\n";
 
     // Captured from nftables 1.1.6 (note the wrapped element list).
     private const string NftTable = """
-        table inet deadlock_server_picker {
+        table inet dsp_deadlock_server_picker {
         	set pop_fra {
         		type ipv4_addr
         		elements = { 155.133.226.68, 155.133.226.69,
@@ -86,7 +86,7 @@ public class FirewallReadTests
     [Fact]
     public async Task NftReadsSetsAndRequiresBothChains()
     {
-        var runner = new FakeRunner().On("list tables", NftTables).On("list table inet deadlock_server_picker", NftTable);
+        var runner = new FakeRunner().On("list tables", NftTables).On("list table inet dsp_deadlock_server_picker", NftTable);
 
         var s = await new NftablesBackend(runner).ReadAsync(Ct);
 
@@ -121,15 +121,15 @@ public class FirewallReadTests
         -P INPUT ACCEPT
         -P FORWARD ACCEPT
         -P OUTPUT ACCEPT
-        -N DEADLOCK_SERVER_PICKER
+        -N DSP_DEADLOCK_SERVER_PICKER
         -N DOCKER-USER
-        -A INPUT -j DEADLOCK_SERVER_PICKER
-        -A OUTPUT -j DEADLOCK_SERVER_PICKER
+        -A INPUT -j DSP_DEADLOCK_SERVER_PICKER
+        -A OUTPUT -j DSP_DEADLOCK_SERVER_PICKER
         -A OUTPUT -m comment --comment "other tool" -j ACCEPT
-        -A DEADLOCK_SERVER_PICKER -d 155.133.248.36/32 -m comment --comment "dsp:ams" -j DROP
-        -A DEADLOCK_SERVER_PICKER -s 155.133.248.36/32 -m comment --comment "dsp:ams" -j DROP
-        -A DEADLOCK_SERVER_PICKER -d 103.10.124.116/32 -m comment --comment dsp:sgp -j DROP
-        -A DEADLOCK_SERVER_PICKER -d 6.6.6.6/32 -m comment --comment "someone:else" -j DROP
+        -A DSP_DEADLOCK_SERVER_PICKER -d 155.133.248.36/32 -m comment --comment "dsp:ams" -j DROP
+        -A DSP_DEADLOCK_SERVER_PICKER -s 155.133.248.36/32 -m comment --comment "dsp:ams" -j DROP
+        -A DSP_DEADLOCK_SERVER_PICKER -d 103.10.124.116/32 -m comment --comment dsp:sgp -j DROP
+        -A DSP_DEADLOCK_SERVER_PICKER -d 6.6.6.6/32 -m comment --comment "someone:else" -j DROP
         -A DOCKER-USER -j RETURN
         """;
 
@@ -150,9 +150,30 @@ public class FirewallReadTests
     [Fact]
     public void IptablesMissingHookMeansNotEnforced()
     {
-        var s = IptablesBackend.Parse(IptablesS.Replace("-A INPUT -j DEADLOCK_SERVER_PICKER\n", "", StringComparison.Ordinal));
+        var s = IptablesBackend.Parse(IptablesS.Replace("-A INPUT -j DSP_DEADLOCK_SERVER_PICKER\n", "", StringComparison.Ordinal));
         Assert.Empty(s.Blocked["ams"]);
         Assert.Contains(s.Warnings, w => w.Contains("jump from INPUT", StringComparison.Ordinal));
+    }
+
+    // ---- other tools' namespaces (#46) ------------------------------------------------------
+
+    [Fact]
+    public void ShibneNftTableIsNotOurs() =>
+        Assert.False(NftablesBackend.HasOurTable("table inet deadlock_server_picker\ntable inet firewalld\n"));
+
+    [Fact]
+    public void ShibneIptablesChainIsNotOurs()
+    {
+        // Rules as shibne/DeadlockServerPicker-linux creates them.
+        var s = IptablesBackend.Parse("""
+            -N DEADLOCK_SERVER_PICKER
+            -A OUTPUT -m comment --comment DEADLOCK_SERVER_PICKER -j DEADLOCK_SERVER_PICKER
+            -A FORWARD -m comment --comment DEADLOCK_SERVER_PICKER -j DEADLOCK_SERVER_PICKER
+            -A DEADLOCK_SERVER_PICKER -d 155.133.248.36/32 -m comment --comment DEADLOCK_SERVER_PICKER_Amsterdam_(ams) -j DROP
+            """);
+        Assert.False(s.Present);
+        Assert.Empty(s.Blocked);
+        Assert.Empty(s.Hooks);
     }
 
     // ---- detection -----------------------------------------------------------------------

@@ -66,7 +66,7 @@ The benchmark's slow PowerShell numbers come from one cmdlet invocation per rule
 
 ### Linux: nftables preferred
 
-- One table, `inet deadlock_server_picker`, containing:
+- One table, `inet dsp_deadlock_server_picker`, containing:
   - one IPv4 set per blocked PoP, `pop_<code>`
   - two base chains, `output` (hook output) and `input` (hook input), at priority `filter`, policy accept
   - one drop rule per set and chain: `ip daddr @pop_ams drop` / `ip saddr @pop_ams drop`
@@ -74,38 +74,42 @@ The benchmark's slow PowerShell numbers come from one cmdlet invocation per rule
 - **Apply:** we always regenerate the full table and feed it to `nft -f -` as one atomic transaction:
 
   ```
-  table inet deadlock_server_picker {}
-  delete table inet deadlock_server_picker
-  table inet deadlock_server_picker { ... }
+  table inet dsp_deadlock_server_picker {}
+  delete table inet dsp_deadlock_server_picker
+  table inet dsp_deadlock_server_picker { ... }
   ```
 
   - The first line makes the delete safe when the table does not exist. This works on nft versions older than `destroy` (1.0.8).
   - Re-applying the same state produces the same ruleset.
-- **Read:** `nft list table inet deadlock_server_picker`, parsing the set names and elements. Text output works everywhere; JSON output (`-j`) needs libjansson.
+- **Read:** `nft list table inet dsp_deadlock_server_picker`, parsing the set names and elements. Text output works everywhere; JSON output (`-j`) needs libjansson.
 - **Reset:** the same create-then-delete pair. It needs no config or network.
 - We use per-PoP sets rather than one big set, so the firewall itself records *which PoP* each IP belongs to. `status` then needs no config, and IPs left over from an older revision remain attributable.
 
 ### Linux: iptables fallback
 
 - Used when `nft` is missing or not usable (for example, iptables-legacy-only systems).
-- Our own chain is `DEADLOCK_SERVER_PICKER`, jumped to at **position 1** of `OUTPUT` and `INPUT`.
+- Our own chain is `DSP_DEADLOCK_SERVER_PICKER`, jumped to at **position 1** of `OUTPUT` and `INPUT`.
 - Every rule carries `-m comment --comment dsp:<pop>`.
 - **Apply:**
 
   ```
   iptables-restore -w --noflush
   *filter
-  :DEADLOCK_SERVER_PICKER - [0:0]
-  -F DEADLOCK_SERVER_PICKER
-  -A DEADLOCK_SERVER_PICKER -d 1.2.3.4/32 -m comment --comment dsp:ams -j DROP
-  -A DEADLOCK_SERVER_PICKER -s 1.2.3.4/32 -m comment --comment dsp:ams -j DROP
+  :DSP_DEADLOCK_SERVER_PICKER - [0:0]
+  -F DSP_DEADLOCK_SERVER_PICKER
+  -A DSP_DEADLOCK_SERVER_PICKER -d 1.2.3.4/32 -m comment --comment dsp:ams -j DROP
+  -A DSP_DEADLOCK_SERVER_PICKER -s 1.2.3.4/32 -m comment --comment dsp:ams -j DROP
   COMMIT
   ```
 
   - The chain contents are replaced atomically.
-  - The jumps are added with `iptables -w -I OUTPUT 1 -j DEADLOCK_SERVER_PICKER` only when the read step shows they are missing.
-- **Read:** `iptables -w -S DEADLOCK_SERVER_PICKER` and `iptables -w -S OUTPUT` / `INPUT`, to see whether the jumps are present.
-- **Reset:** delete our jumps from OUTPUT and INPUT, then `-F` and `-X` our chain.
+  - The jumps are added with `iptables -w -I OUTPUT 1 -j DSP_DEADLOCK_SERVER_PICKER` only when the read step shows they are missing.
+- **Read:** a single `iptables -w -S`. It shows our chain's rules and whether the jumps from OUTPUT and INPUT are present.
+- **Reset:** delete every jump to our chain from OUTPUT and INPUT, then `-F` and `-X` our chain.
+
+### Why the Linux names carry a `dsp_` / `DSP_` prefix
+
+shibne/DeadlockServerPicker-linux, which is on the AUR, already uses `inet deadlock_server_picker` and `DEADLOCK_SERVER_PICKER`. If we shared those names, our reset could delete another tool's rules, and our status would report that tool's rules as ours (#46). The prefixed names are unique among the pickers we studied. The chain name is 26 characters, under iptables' 28-character limit.
 
 ### Detection and override
 

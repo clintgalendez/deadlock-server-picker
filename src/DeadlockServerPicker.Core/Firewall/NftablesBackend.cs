@@ -4,12 +4,12 @@ using System.Text.RegularExpressions;
 namespace DeadlockServerPicker.Core.Firewall;
 
 /// <summary>
-/// nftables: our own table <c>inet deadlock_server_picker</c> with one IPv4 set per blocked PoP and
+/// nftables: our own table <c>inet dsp_deadlock_server_picker</c> with one IPv4 set per blocked PoP and
 /// drop rules in our own output/input base chains (ADR 0002).
 /// </summary>
 public sealed partial class NftablesBackend(ICommandRunner runner) : IFirewallBackend
 {
-    public const string Table = "deadlock_server_picker";
+    public const string Table = "dsp_deadlock_server_picker";
 
     public string Name => "nftables";
 

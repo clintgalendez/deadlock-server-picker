@@ -46,8 +46,8 @@ This tool never changes it for you; it only shows the matching command as a tip.
 2. Groups the PoPs into regions (NA, EU, Asia, SA, Oceania, Middle East, Africa) and pings one relay per PoP.
 3. For every PoP you block, adds firewall rules dropping traffic to and from all of that PoP's relay IPs:
    - **Windows:** two rules per PoP (in and out) named `DeadlockServerPicker_<pop>_in` / `_out` in the group `DeadlockServerPicker`.
-   - **Linux (nftables):** its own table `inet deadlock_server_picker`.
-   - **Linux (iptables fallback):** its own chain `DEADLOCK_SERVER_PICKER`.
+   - **Linux (nftables):** its own table `inet dsp_deadlock_server_picker`.
+   - **Linux (iptables fallback):** its own chain `DSP_DEADLOCK_SERVER_PICKER`.
 4. Reads the firewall back to show status. **The firewall is the source of truth.**
 5. `reset` removes everything the app created and nothing else.
 
