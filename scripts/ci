@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Local CI gate. Runs `just ci` and posts the result as the `local-ci` commit
+# status on the pushed PR head, then writes a summary into the PR description.
+#
+#   scripts/ci            run + post status + update PR description
+#   scripts/ci --no-post  run only (any branch, dirty tree allowed)
+#
+# Refuses to post when the tree is dirty or HEAD is not the pushed PR head,
+# so a green `local-ci` always describes exactly the code under review.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+die() { echo "scripts/ci: $*" >&2; exit 1; }
+dirty() { [ -n "$(git status --porcelain)" ]; }
+
+post=1
+case "${1:-}" in
+    --no-post) post=0 ;;
+    "") ;;
+    *) die "usage: scripts/ci [--no-post]" ;;
+esac
+
+sha=$(git rev-parse HEAD)
+
+if [ "$post" = 1 ]; then
+    dirty && die "working tree is dirty; commit or stash first (or use --no-post)"
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    [ "$branch" != main ] || die "run on a PR branch, not main"
+    repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+    git fetch -q origin "$branch" || die "branch $branch is not pushed"
+    [ "$(git rev-parse "origin/$branch")" = "$sha" ] || die "HEAD $sha is not what is pushed to origin/$branch; push first"
+    pr=$(gh pr view "$branch" --json number,headRefOid,state -q '"\(.number) \(.headRefOid) \(.state)"' 2>/dev/null) \
+        || die "no PR for $branch; open one first"
+    read -r pr_num pr_head pr_state <<<"$pr"
+    [ "$pr_state" = OPEN ] || die "PR #$pr_num is $pr_state"
+    [ "$pr_head" = "$sha" ] || die "HEAD $sha is not the PR head $pr_head"
+    status() {
+        gh api "repos/$repo/statuses/$sha" -f state="$1" -f context=local-ci -f description="$2" >/dev/null
+    }
+    status pending "just ci running"
+fi
+
+mkdir -p artifacts
+log=artifacts/ci.log
+start=$(date +%s)
+set +e
+just ci 2>&1 | tee "$log"
+rc=${PIPESTATUS[0]}
+set -e
+secs=$(( $(date +%s) - start ))
+
+[ "$rc" = 0 ] && result="passed" || result="FAILED (exit $rc)"
+tests=$(grep -E '^\s*(total|failed|succeeded|skipped):' "$log" | tr -s ' ' | paste -sd' ' - || true)
+summary=$(cat <<EOF
+<!-- local-ci:start -->
+### Local CI: ${result}
+
+| | |
+|---|---|
+| Commit | \`${sha:0:12}\` |
+| Host | $(uname -s) / .NET SDK $(dotnet --version) |
+| Steps | fmt-check, lint, test, build (win-x64, linux-x64), license audit, vulnerability scan |
+| Tests | ${tests:-n/a} |
+| Licenses | $(grep -E '^license audit' "$log" | tail -1 || echo n/a) |
+| Vulnerabilities | $(grep -E '^vulnerability scan|vulnerable packages found' "$log" | tail -1 || echo n/a) |
+| Duration | ${secs}s |
+<!-- local-ci:end -->
+EOF
+)
+echo
+echo "$summary"
+
+if [ "$post" = 1 ]; then
+    if dirty || [ "$(git rev-parse HEAD)" != "$sha" ]; then
+        status failure "tree changed during CI"
+        die "working tree or HEAD changed during CI; not posting success"
+    fi
+    if [ "$rc" = 0 ]; then
+        status success "just ci passed in ${secs}s"
+    else
+        status failure "just ci failed (exit $rc)"
+    fi
+    body=$(gh pr view "$pr_num" --json body -q .body | awk '/<!-- local-ci:start -->/{skip=1} !skip{print} /<!-- local-ci:end -->/{skip=0}')
+    printf '%s\n\n%s\n' "$body" "$summary" | gh pr edit "$pr_num" --body-file - >/dev/null
+    echo "scripts/ci: posted local-ci=$([ "$rc" = 0 ] && echo success || echo failure) on ${sha:0:12} (PR #$pr_num)"
+fi
+exit "$rc"

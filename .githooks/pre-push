@@ -1,0 +1,3 @@
+#!/bin/sh
+# Installed by `just hooks`. Quick unit tests before every push.
+exec just test-quick
