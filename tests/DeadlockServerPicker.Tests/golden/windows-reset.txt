@@ -1,0 +1,6 @@
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command '& ([scriptblock]::Create([Console]::In.ReadToEnd()))' <<'EOF'
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+Remove-TypeData -TypeName System.Array -ErrorAction SilentlyContinue
+Get-NetFirewallRule -Group 'DeadlockServerPicker' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'DeadlockServerPicker_*' } | Remove-NetFirewallRule
+EOF

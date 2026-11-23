@@ -1,0 +1,10 @@
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command '& ([scriptblock]::Create([Console]::In.ReadToEnd()))' <<'EOF'
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+Remove-TypeData -TypeName System.Array -ErrorAction SilentlyContinue
+Remove-NetFirewallRule -ErrorAction SilentlyContinue -Name @('DeadlockServerPicker_fra_out', 'DeadlockServerPicker_fra_in', 'DeadlockServerPicker_hkg_out', 'DeadlockServerPicker_hkg_in', 'DeadlockServerPicker_sgp_out', 'DeadlockServerPicker_sgp_in')
+New-NetFirewallRule -Name 'DeadlockServerPicker_fra_out' -DisplayName 'DeadlockServerPicker_fra' -Group 'DeadlockServerPicker' -Description 'Blocks Steam Datagram Relay PoP fra. Added by Deadlock Server Picker; remove with: dsp reset' -Direction Outbound -Action Block -Protocol Any -Profile Any -Enabled True -RemoteAddress @('155.133.226.68', '155.133.226.69') | Out-Null
+New-NetFirewallRule -Name 'DeadlockServerPicker_fra_in' -DisplayName 'DeadlockServerPicker_fra' -Group 'DeadlockServerPicker' -Description 'Blocks Steam Datagram Relay PoP fra. Added by Deadlock Server Picker; remove with: dsp reset' -Direction Inbound -Action Block -Protocol Any -Profile Any -Enabled True -RemoteAddress @('155.133.226.68', '155.133.226.69') | Out-Null
+New-NetFirewallRule -Name 'DeadlockServerPicker_sgp_out' -DisplayName 'DeadlockServerPicker_sgp' -Group 'DeadlockServerPicker' -Description 'Blocks Steam Datagram Relay PoP sgp. Added by Deadlock Server Picker; remove with: dsp reset' -Direction Outbound -Action Block -Protocol Any -Profile Any -Enabled True -RemoteAddress @('103.10.124.116') | Out-Null
+New-NetFirewallRule -Name 'DeadlockServerPicker_sgp_in' -DisplayName 'DeadlockServerPicker_sgp' -Group 'DeadlockServerPicker' -Description 'Blocks Steam Datagram Relay PoP sgp. Added by Deadlock Server Picker; remove with: dsp reset' -Direction Inbound -Action Block -Protocol Any -Profile Any -Enabled True -RemoteAddress @('103.10.124.116') | Out-Null
+EOF

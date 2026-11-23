@@ -57,6 +57,7 @@ public sealed partial class NftablesBackend(ICommandRunner runner) : IFirewallBa
         foreach (Match set in SetBlock().Matches(listTable))
         {
             var pop = set.Groups["pop"].Value;
+            b.Touch(pop);
             var ips = set.Groups["el"].Value.Split([',', ' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
             foreach (var raw in ips)
             {
@@ -70,6 +71,12 @@ public sealed partial class NftablesBackend(ICommandRunner runner) : IFirewallBa
             if (!hooked.Contains((pop, false)) || !hooked.Contains((pop, true)))
                 b.Warnings.Add($"{pop}: set exists but is not referenced by both drop rules; re-apply to repair.");
         }
-        return b.Build();
+        return b.Build(present: true);
     }
+
+    public IReadOnlyList<Command> PlanApply(FirewallState current, DesiredState desired) =>
+        throw new NotSupportedException("nftables apply lands with #14.");
+
+    public IReadOnlyList<Command> PlanReset(FirewallState current) =>
+        throw new NotSupportedException("nftables reset lands with #14.");
 }
