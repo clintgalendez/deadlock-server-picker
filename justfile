@@ -57,6 +57,10 @@ audit: restore
     if grep -q "has the following vulnerable packages" artifacts/vulnerable.txt; then echo "vulnerable packages found"; exit 1; fi
     echo "vulnerability scan: ok"
 
+# Real nftables/iptables test in a throwaway network namespace (opt-in; WSL on Windows, sudo on Linux)
+integration-linux:
+    bash scripts/integration-linux
+
 # Everything the merge gate requires
 ci: fmt-check lint test build audit
     @echo "just ci: all steps passed"
