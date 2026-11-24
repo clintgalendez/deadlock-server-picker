@@ -5,7 +5,7 @@ Choose which server regions you can be matched into in **Deadlock** (Valve, Stea
 It works by adding firewall rules that block Valve's **Steam Datagram Relay (SDR)** points of presence (PoPs) in regions you don't want. Matchmaking can't reach those relays, so it prefers the ones you left open.
 
 - Windows 10/11 x64 (Windows Defender Firewall) and Linux x64 (nftables or iptables). Steam Deck / SteamOS is a stretch goal and is untested.
-- Portable single-file binaries: a command-line tool (`dsp`) and a desktop GUI. No installer.
+- Portable single-file binaries: a desktop GUI (`DeadlockServerPicker`) and a command-line tool (`dsp`). No installer.
 - Never touches game files, game memory or launch options. It only adds and removes its own firewall rules.
 
 > **Status:** under active development; releases are marked *pre-release* until they are verified in game. See the pinned [Roadmap](https://github.com/clintgalendez/deadlock-server-picker/issues?q=is%3Aissue+Roadmap) issue.
@@ -56,6 +56,22 @@ Design records: [docs/adr](docs/adr). Prior art and lessons learned: [docs/resea
 ## Install
 
 Download the archive for your OS from [Releases](https://github.com/clintgalendez/deadlock-server-picker/releases), verify it, and extract it anywhere. See [docs/install.md](docs/install.md) for checksums, SmartScreen and antivirus warnings (the binaries are unsigned), Linux notes and uninstalling.
+
+## Usage (GUI)
+
+![Deadlock Server Picker GUI](docs/images/gui.png)
+
+Run `DeadlockServerPicker` (Windows: `DeadlockServerPicker.exe`).
+
+1. **Check** the locations you're happy to play on. Unchecked ones get blocked. You can also use the region toggles, or the presets *Allow only this region* and *Allow only PoPs within N ms*.
+2. Click **Apply**. The app writes the rules, reads the firewall back, and confirms what's actually blocked.
+3. **Unblock all** removes every rule the app created.
+
+The table shows each location's region, ping and current firewall state. Pending changes are marked "→ block on Apply". Locations Valve publishes no relays for are shown as *Not blockable*, along with the relays they are reached through.
+
+Elevation:
+- **Windows:** the app asks for administrator rights once when it starts (UAC).
+- **Linux:** the app runs as your user and asks for your password once per session (polkit), the first time it reads or changes the firewall. It uses the bundled `dsp` CLI as a small privileged helper. Without a polkit agent (e.g. SteamOS Game Mode), use the CLI with `sudo`.
 
 ## Usage (CLI)
 

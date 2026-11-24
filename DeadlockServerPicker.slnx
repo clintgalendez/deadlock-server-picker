@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/DeadlockServerPicker.Cli/DeadlockServerPicker.Cli.csproj" />
     <Project Path="src/DeadlockServerPicker.Core/DeadlockServerPicker.Core.csproj" />
+    <Project Path="src/DeadlockServerPicker.Gui/DeadlockServerPicker.Gui.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DeadlockServerPicker.Tests/DeadlockServerPicker.Tests.csproj" />

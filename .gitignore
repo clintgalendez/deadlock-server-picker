@@ -8,3 +8,4 @@ dist/
 .idea/
 TestResults/
 *.log
+__pycache__/

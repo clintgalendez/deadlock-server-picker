@@ -25,6 +25,15 @@ Use Windows 10 or 11 x64, with Windows Defender Firewall as the active firewall 
 - [ ] Turn off the firewall for the *Public* profile. `dsp status` warns that rules are not enforced there. Turn it back on.
 - [ ] `dsp reset` removes every `DeadlockServerPicker_*` rule. Check in `wf.msc` and with `Get-NetFirewallRule -Group DeadlockServerPicker` (nothing returned). All other rules are untouched.
 - [ ] From a source checkout, in an elevated shell: `DSP_INTEGRATION_WINDOWS=1 just test` runs `RealFirewallRoundTrip`, which passes and leaves no rules.
+- [ ] **GUI:** double-click `DeadlockServerPicker.exe`.
+  - [ ] Exactly one UAC prompt appears.
+  - [ ] The table shows pings and "Open"/"Blocked" states that match `dsp status`.
+  - [ ] Uncheck *Asia* and click **Apply (7 changes)**. The status reads "Verified in the firewall: 7 PoP(s) blocked", and `wf.msc` shows the rules.
+  - [ ] *Allow only this region* (Europe) shows the `citadel_region_override 1` tip.
+  - [ ] **Unblock all** removes every rule.
+  - [ ] *Why blocking is not a guarantee* opens the browser (not elevated).
+  - [ ] *Open log folder* opens Explorer.
+  - [ ] Close the GUI while pings are running: no crash, nothing left behind.
 - [ ] If possible, on a non-English Windows display language: `dsp status` and `dsp block` still work.
 
 ## 2. Linux (issue #20)
@@ -44,6 +53,12 @@ For each:
 - [ ] `sudo dsp reset` leaves nothing behind (`sudo nft list ruleset | grep dsp_` and `sudo iptables -S | grep DSP_` both empty).
 - [ ] After a reboot, nothing of ours is left. This is expected; the docs say so.
 - [ ] SteamOS: note whether `nft`/`iptables` exist and whether `sudo` works (a password must be set with `passwd`).
+- [ ] **GUI** (`./DeadlockServerPicker` from the desktop):
+  - [ ] It starts without a password prompt and shows pings.
+  - [ ] **Load firewall status** shows **one** polkit password dialog, then statuses.
+  - [ ] Change the selection and click **Apply**. There is **no** second password prompt, and the result is verified.
+  - [ ] Cancelling the polkit dialog shows a clear error, and the app keeps working.
+  - [ ] Closing the GUI leaves no `dsp agent` process running (`pgrep -a dsp`).
 
 ## 3. In game (issue #29)
 
