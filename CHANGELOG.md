@@ -7,6 +7,18 @@ All notable changes to this project are documented here. The format follows
 This file is generated from Conventional Commit messages by
 [git-cliff](https://git-cliff.org) when a release is prepared (`scripts/release prepare`).
 
+## [0.3.0] - 2026-11-24
+
+### Added
+
+- Detect relay changes for blocked PoPs and re-sync them (dsp resync, GUI banner) (#56)
+- Explain disabled firewall service, third-party firewalls and other failures clearly (#58)
+- Warn about firewall rules left by other server pickers (read-only) (#59)
+
+### Documentation
+
+- Add troubleshooting guide and tested Linux distribution matrix (#60)
+
 ## [0.2.0] - 2026-11-24
 
 ### Added
@@ -40,6 +52,7 @@ This file is generated from Conventional Commit messages by
 - **adr:** Record stack, firewall backend and elevation decisions (#33)
 - Add README, limitations, community files, templates and AGENTS.md (#34)
 
+[0.3.0]: https://github.com/clintgalendez/deadlock-server-picker/compare/v0.2.0..v0.3.0
 [0.2.0]: https://github.com/clintgalendez/deadlock-server-picker/compare/v0.1.0..v0.2.0
 [0.1.0]: https://github.com/clintgalendez/deadlock-server-picker/tree/v0.1.0
 
