@@ -67,4 +67,13 @@ public class SdrConfigSourceTests
         var e = await Assert.ThrowsAsync<ConfigUnavailableException>(() => src.LoadAsync(1422450, ct: Ct));
         Assert.Contains("internet connection", e.Message);
     }
+    [Fact]
+    public async Task UnwritableCacheDirDoesNotBreakOnlineUse()
+    {
+        var blocker = Path.Combine(Fixtures.TempDir(), "not-a-dir");
+        File.WriteAllText(blocker, "x"); // a file where the cache directory should be
+        var loaded = await new SdrConfigSource(new HttpClient(StubHandler.Ok(Body)), blocker).LoadAsync(1422450, ct: Ct);
+        Assert.False(loaded.Stale);
+        Assert.Equal(37, loaded.Config.Pops.Count);
+    }
 }

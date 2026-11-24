@@ -118,6 +118,8 @@ public static partial class Cli
         if (args.Json)
             env.Out.WriteLine(JsonSerializer.Serialize(new ErrorDto(message, code), CliJson.Default.ErrorDto));
         env.Err.WriteLine($"error: {message}");
+        if (code == ExitCodes.Error && Log.FilePath is { } log)
+            env.Err.WriteLine($"The log has the exact commands and their output: {log}");
         return code;
     }
 
