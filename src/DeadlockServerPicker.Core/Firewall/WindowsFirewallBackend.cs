@@ -52,6 +52,35 @@ public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string
 
     public Command ReadCommand => Script(ReadBody);
 
+    /// <summary>Display-name prefixes used by other Windows pickers (docs/research.md).</summary>
+    public static readonly IReadOnlyList<string> OtherToolPrefixes = ["server_picker_x_", "CS2ServerPicker_", "cs2-relay-"];
+
+    public Command OtherToolsCommand => Script(
+        "ConvertTo-Json -Compress -InputObject @(Get-NetFirewallRule -DisplayName "
+        + string.Join(",", OtherToolPrefixes.Select(p => Quote(p + "*")))
+        + " -ErrorAction SilentlyContinue | ForEach-Object { [string]$_.DisplayName })\n");
+
+    public async Task<IReadOnlyList<string>> DetectOtherToolsAsync(CancellationToken ct = default)
+    {
+        var r = await runner.RunAsync(OtherToolsCommand, ct);
+        return r.ExitCode == 0 ? ParseOtherTools(r.Stdout) : [];
+    }
+
+    public static IReadOnlyList<string> ParseOtherTools(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+        using var doc = JsonDocument.Parse(json);
+        var names = doc.RootElement.ValueKind == JsonValueKind.Array
+            ? doc.RootElement.EnumerateArray().Select(e => e.GetString() ?? "").ToList()
+            : [doc.RootElement.GetString() ?? ""];
+        return OtherToolPrefixes
+            .Select(prefix => (prefix, count: names.Count(n => n.StartsWith(prefix, StringComparison.Ordinal))))
+            .Where(x => x.count > 0)
+            .Select(x => $"{x.count} firewall rule{(x.count == 1 ? "" : "s")} from another server picker ({x.prefix}*) also block relays. This tool never touches them; remove them in that app or in wf.msc (Windows Defender Firewall with Advanced Security).")
+            .ToList();
+    }
+
     public async Task<FirewallState> ReadAsync(CancellationToken ct = default)
     {
         var r = await runner.RunAsync(ReadCommand, ct);

@@ -435,7 +435,7 @@ internal sealed class MainWindow : Window
     {
         try
         {
-            var state = await Task.Run(() => _firewall!.ReadAsync());
+            var state = await Task.Run(() => _firewall!.ReadAsync(detectOtherTools: _model!.Firewall is null));
             _firewallError = null;
             _model!.SetFirewall(state);
             SetStatus(state.Blocked.Count == 0 ? "Firewall read: nothing is blocked." : $"Firewall read: {state.Blocked.Count} PoP(s) blocked.");

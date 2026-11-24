@@ -31,6 +31,19 @@ public interface IFirewallBackend
 
     /// <summary>Commands that remove everything in our namespace and nothing else; empty when nothing is there.</summary>
     IReadOnlyList<Command> PlanReset(FirewallState current);
+
+    /// <summary>
+    /// Read-only: warnings naming rules left by OTHER server pickers (they also block relays and
+    /// confuse users). We never modify them. Run for status / first GUI read, not on every verify.
+    /// </summary>
+    Task<IReadOnlyList<string>> DetectOtherToolsAsync(CancellationToken ct = default);
+}
+
+internal static class OtherTools
+{
+    public const string LinuxAdvice = "They also block relays, and this tool never touches rules it didn't create: remove them with that tool (its reset/unblock command) or by hand.";
+
+    public static string Warning(string name) => $"Found firewall rules from another server picker ({name}). {LinuxAdvice}";
 }
 
 /// <summary>Collects per-direction IPs per PoP and turns them into a <see cref="FirewallState"/>.</summary>

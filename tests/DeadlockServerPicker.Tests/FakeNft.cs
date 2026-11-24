@@ -23,6 +23,7 @@ internal sealed class FakeNft : ICommandRunner
         {
             "--version" => Ok("nftables v1.1.6"),
             "list tables" => Ok(Table is null ? "" : $"table inet {NftablesBackend.Table}\n"),
+            "list ruleset" => Ok(Table ?? ""),
             var a when a == $"list table inet {NftablesBackend.Table}" => Table is null ? new CommandResult(1, "", "Error: No such file or directory") : Ok(Table),
             "-f -" => Apply(command.Stdin!),
             var a => new CommandResult(1, "", $"FakeNft: unexpected `nft {a}`"),
