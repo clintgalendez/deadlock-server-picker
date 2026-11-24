@@ -88,4 +88,19 @@ public class PickerModelTests
         m.AllowAll();
         Assert.Empty(m.Desired.Blocked);
     }
+    [Fact]
+    public void StaleBlocksAreExposedAndPendingEditsCanBeRestored()
+    {
+        var m = Model();
+        Assert.Empty(m.Stale); // firewall not read yet
+        m.SetFirewall(States.Current(("ams", ["9.9.9.9"])));
+        Assert.Equal("ams", Assert.Single(m.Stale).Pop);
+
+        m.SetAllowed("fra", false);
+        var keep = m.Allowed.ToList();
+        m.SetFirewall(States.Current(("ams", Fixtures.Deadlock.Pops["ams"].Relays.Select(r => r.Ipv4).ToArray())));
+        m.SetAllowedSet(keep);
+        Assert.DoesNotContain("fra", m.Allowed);
+        Assert.Empty(m.Stale);
+    }
 }

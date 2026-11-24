@@ -209,6 +209,15 @@ internal sealed class MainWindow : Window
             _banners.Children.Add(Banner($"Using a cached relay list from {_loaded.FetchedAt.ToLocalTime():yyyy-MM-dd HH:mm} ({_loaded.StaleReason}). Valve may have changed relays since; blocks use these cached addresses.", WarnBack));
         if (_firewallError is not null)
             _banners.Children.Add(Banner(_firewallError, ErrorBack));
+        if (_model?.Stale is { Count: > 0 } stale)
+        {
+            var reapply = new Button { Content = "Re-apply now", IsEnabled = !_busy, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+            reapply.Click += async (_, _) => await RunAsync("Updating blocks to Valve's current relays…", ResyncAsync);
+            var text = $"Valve changed its relay list since you blocked these PoPs, so some new relays are not blocked: {string.Join("; ", stale.Select(x => x.Describe()))}.";
+            var panel = new DockPanel { Children = { reapply, new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center } } };
+            DockPanel.SetDock(reapply, Dock.Right);
+            _banners.Children.Add(new Border { Background = WarnBack, CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 6), Child = panel });
+        }
         foreach (var w in _model?.Firewall?.Warnings ?? [])
             _banners.Children.Add(Banner(w, WarnBack));
     }
@@ -452,6 +461,17 @@ internal sealed class MainWindow : Window
         SetStatus(state.Blocked.Count == 0
             ? "Done. Verified in the firewall: nothing is blocked."
             : $"Done. Verified in the firewall: {state.Blocked.Count} PoP(s) blocked. Restart Steam if a game is running so it re-measures relays.", OkBrush);
+    }
+
+    /// <summary>Re-blocks exactly the PoPs blocked now with Valve's current IPs; keeps the user's pending edits.</summary>
+    private async Task ResyncAsync()
+    {
+        var keep = _model!.Allowed.ToList();
+        var desired = Planner.Resync(_model.Config, _model.Firewall!);
+        var state = await Task.Run(() => _firewall!.ApplyAsync(desired));
+        _model.SetFirewall(state);
+        _model.SetAllowedSet(keep);
+        SetStatus("Done. Blocked PoPs now use Valve's current relay list (verified in the firewall).", OkBrush);
     }
 
     private async Task UnblockAllAsync()

@@ -14,6 +14,14 @@ public sealed record DesiredState(IReadOnlyDictionary<string, IReadOnlySet<strin
     public static DesiredState Empty { get; } = new(new SortedDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal));
 }
 
+/// <summary>A blocked PoP whose firewall IPs differ from Valve's current relay list.</summary>
+public sealed record StaleBlock(string Pop, IReadOnlyList<string> Missing, IReadOnlyList<string> Extra, bool Vanished)
+{
+    public string Describe() => Vanished
+        ? $"{Pop}: no longer in Valve's relay list ({Extra.Count} old IP{(Extra.Count == 1 ? "" : "s")} still blocked)"
+        : $"{Pop}: {Missing.Count} new relay IP{(Missing.Count == 1 ? "" : "s")} not blocked yet, {Extra.Count} old IP{(Extra.Count == 1 ? "" : "s")} still blocked";
+}
+
 /// <summary>Result of turning user selectors into PoP codes. Notes explain skipped items.</summary>
 public sealed record Selection(IReadOnlySet<string> Pops, IReadOnlyList<string> Notes);
 
@@ -114,6 +122,31 @@ public static class Planner
     /// <summary>Blockable PoPs left open by <paramref name="desired"/>.</summary>
     public static IReadOnlyList<string> OpenPops(SdrConfig cfg, DesiredState desired) =>
         cfg.Pops.Values.Where(p => p.Blockable && !desired.Blocked.ContainsKey(p.Code)).Select(p => p.Code).ToList();
+
+    /// <summary>
+    /// Blocked PoPs whose firewall IPs no longer match Valve's current relay list: new relays that are
+    /// not blocked yet (Missing), old ones still blocked (Extra), or the PoP disappeared or lost its
+    /// relays (Vanished). Firewall vs config, so it catches drift whatever revision caused it.
+    /// </summary>
+    public static IReadOnlyList<StaleBlock> StaleBlocks(SdrConfig cfg, FirewallState current)
+    {
+        var stale = new List<StaleBlock>();
+        foreach (var (pop, blocked) in current.Blocked)
+        {
+            var relays = cfg.Pops.TryGetValue(pop, out var p) ? p.Relays.Select(r => r.Ipv4).ToHashSet(StringComparer.Ordinal) : [];
+            if (relays.SetEquals(blocked))
+                continue;
+            stale.Add(new StaleBlock(
+                pop,
+                relays.Except(blocked).Order(StringComparer.Ordinal).ToList(),
+                blocked.Except(relays).Order(StringComparer.Ordinal).ToList(),
+                relays.Count == 0));
+        }
+        return stale;
+    }
+
+    /// <summary>"Re-sync": keep exactly the PoPs blocked now, with Valve's current relay IPs.</summary>
+    public static DesiredState Resync(SdrConfig cfg, FirewallState current) => Block(cfg, current, []);
 
     public static string? OverBlockingWarning(SdrConfig cfg, DesiredState desired)
     {

@@ -91,6 +91,15 @@ for backend in nftables iptables; do
     dsp block asia >/dev/null || fail "block asia exited non-zero"
     if [ "$backend" = nftables ]; then expect "block asia: 7 sets" 7 "$(ours)"; else expect "block asia: 32 relay IPs (-d rules)" 32 "$(ours)"; fi
     out=$(dsp block asia); expect "re-block is a no-op" "Nothing to change" "$(echo "$out" | grep -o 'Nothing to change' || true)"
+    # Simulate Valve rotating a relay: drop one blocked sgp IP behind the tool's back.
+    if [ "$backend" = nftables ]; then
+        in_ns nft delete element inet dsp_deadlock_server_picker pop_sgp '{ 103.10.124.116 }'
+    else
+        in_ns iptables -w -D DSP_DEADLOCK_SERVER_PICKER -d 103.10.124.116/32 -m comment --comment dsp:sgp -j DROP
+        in_ns iptables -w -D DSP_DEADLOCK_SERVER_PICKER -s 103.10.124.116/32 -m comment --comment dsp:sgp -j DROP
+    fi
+    out=$(dsp status); expect "status spots the stale PoP and suggests resync" 1 "$(echo "$out" | grep -c 'Run `dsp resync`')"
+    dsp resync >/dev/null; out=$(dsp status); expect "resync restores the missing relay" 0 "$(echo "$out" | grep -c 'dsp resync')"
     out=$(dsp status --json); expect "status lists hkg" 1 "$(echo "$out" | grep -c '"code": "hkg"')"
     dsp unblock hkg >/dev/null; out=$(dsp status --json); expect "unblock hkg removes it" 0 "$(echo "$out" | grep -c '"code": "hkg"')"
     if [ "$backend" = iptables ]; then

@@ -48,7 +48,7 @@ This tool never changes it for you; it only shows the matching command as a tip.
    - **Windows:** two rules per PoP (in and out) named `DeadlockServerPicker_<pop>_in` / `_out` in the group `DeadlockServerPicker`.
    - **Linux (nftables):** its own table `inet dsp_deadlock_server_picker`.
    - **Linux (iptables fallback):** its own chain `DSP_DEADLOCK_SERVER_PICKER`.
-4. Reads the firewall back to show status. **The firewall is the source of truth.**
+4. Reads the firewall back to show status. **The firewall is the source of truth.** When Valve changes the relay IPs of a PoP you blocked, `dsp status` and the GUI say so, and `dsp resync` or the GUI's *Re-apply now* blocks the new relays.
 5. `reset` removes everything the app created and nothing else.
 
 Design records: [docs/adr](docs/adr). Prior art and lessons learned: [docs/research.md](docs/research.md).
@@ -83,6 +83,7 @@ dsp block <pop|region>...     # e.g. dsp block asia sa
 dsp unblock <pop|region>...   # or: dsp unblock --all
 dsp preset only-region eu     # block everything outside EU
 dsp preset within 80          # block every PoP slower than 80 ms
+dsp resync                    # re-block the same PoPs with Valve's current relay IPs
 dsp reset                     # remove every rule this tool created
 ```
 

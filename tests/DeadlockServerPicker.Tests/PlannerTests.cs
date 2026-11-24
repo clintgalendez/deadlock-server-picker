@@ -115,4 +115,24 @@ public class PlannerTests
         Assert.Contains("Every blockable PoP is blocked", Planner.OverBlockingWarning(Cfg, Planner.Desired(Cfg, all)), StringComparison.Ordinal);
         Assert.Null(Planner.OverBlockingWarning(Cfg, Planner.Desired(Cfg, ["ams"])));
     }
+    [Fact]
+    public void StaleBlocksReportNewAndOldRelaysAndVanishedPops()
+    {
+        var current = State(("ams", ["155.133.248.36", "9.9.9.9"]), ("fra", Ips("fra")), ("gone", ["8.8.8.8"]));
+        var stale = Planner.StaleBlocks(Cfg, current);
+        Assert.Equal(["ams", "gone"], stale.Select(s => s.Pop));
+        Assert.Equal(["155.133.248.37", "155.133.248.40", "155.133.248.41"], stale[0].Missing);
+        Assert.Equal(["9.9.9.9"], stale[0].Extra);
+        Assert.True(stale[1].Vanished);
+        Assert.Equal("ams: 3 new relay IPs not blocked yet, 1 old IP still blocked", stale[0].Describe());
+    }
+
+    [Fact]
+    public void ResyncKeepsTheSamePopsWithCurrentIps()
+    {
+        var current = State(("ams", ["9.9.9.9"]), ("gone", ["8.8.8.8"]));
+        var desired = Planner.Resync(Cfg, current);
+        Assert.Equal(["ams"], desired.Blocked.Keys);
+        Assert.Equal(Ips("ams"), desired.Blocked["ams"]);
+    }
 }
