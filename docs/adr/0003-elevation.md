@@ -35,13 +35,25 @@ Prior art (docs/research.md):
 ### GUI on Linux: unprivileged GUI + `pkexec` per firewall action
 
 - The GUI never runs as root.
-- Firewall commands (read and apply) go through a runner that prefixes `pkexec`. The ruleset is passed **on stdin** (`pkexec nft -f -`), never through a temporary file.
-- If `pkexec` is missing or the user cancels, the GUI shows a clear message and the exact `sudo dsp …` command to run instead.
-- Each firewall action triggers one polkit prompt. The GUI keeps the number of actions low: one read at startup on demand, one apply per click.
-- If the GUI is already running as root (`sudo -E`), it skips `pkexec`.
+- On first use (reading or changing the firewall), the GUI starts **one privileged helper for the whole session**: `pkexec <dir>/dsp agent`. The user authenticates **once**. *(Revised 2026-11-24, #23.)*
+- The agent speaks JSON lines on stdin/stdout. No temporary files, no sockets.
+- It accepts only three high-level operations:
+  - `read`
+  - `apply` a desired map of PoP code → IPv4 list
+  - `reset`
+- It validates them with the same rules as the SDR parser (`^[a-z0-9]{2,16}$` codes, literal dotted-quad IPv4, size caps), then plans, executes and verifies **itself** through the backends.
+- The GUI never sends commands. The worst a hijacked GUI process can do is block or unblock IPv4 addresses inside our own namespace.
+- The agent exits when its stdin closes, i.e. when the GUI exits.
+- If `pkexec` is missing or the user cancels (exit 126/127), the GUI shows a clear message and the `sudo ./dsp …` alternative.
+- If the GUI is already running as root, it uses the backends in-process instead.
+
+Why not "a `pkexec` per firewall command" (the first version of this ADR):
+- An nftables read is two commands. An apply is a write plus a read-back for verification.
+- So one click on Apply would have meant three or four password prompts.
 
 ## Consequences
 
 - Windows users see one UAC prompt when they open the GUI.
-- Linux users see a polkit dialog per firewall action. On a system without a polkit agent (for example SteamOS Game Mode or a bare WM), they use the CLI with `sudo`, which is documented.
-- The elevation check lives in Core (`Elevation.IsElevated()`), so the CLI and GUI behave the same.
+- Linux users see one polkit dialog per GUI session, the first time the GUI reads or changes the firewall. On a system without a polkit agent (for example SteamOS Game Mode or a bare WM), they use the CLI with `sudo`, which is documented.
+- Like `sudo ./dsp`, pkexec runs the `dsp` binary from wherever the user extracted it. Anyone who can already write to that folder as the user could swap the binary before the prompt. That is inherent to portable tools that elevate, and it is documented in SECURITY.md's scope.
+- The elevation check lives in Core (`Elevation.IsElevated()`), so the CLI, agent and GUI behave the same.
