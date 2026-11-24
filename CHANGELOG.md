@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 This file is generated from Conventional Commit messages by
 [git-cliff](https://git-cliff.org) when a release is prepared (`scripts/release prepare`).
 
+## [0.2.0] - 2026-11-24
+
+### Added
+
+- **core:** Add a validated privileged agent so the Linux GUI authenticates once (#53)
+- **gui:** Add desktop GUI with region toggles, presets and verified apply (#54)
+
 ## [0.1.0] - 2026-11-23
 
 ### Added
@@ -33,5 +40,6 @@ This file is generated from Conventional Commit messages by
 - **adr:** Record stack, firewall backend and elevation decisions (#33)
 - Add README, limitations, community files, templates and AGENTS.md (#34)
 
+[0.2.0]: https://github.com/clintgalendez/deadlock-server-picker/compare/v0.1.0..v0.2.0
 [0.1.0]: https://github.com/clintgalendez/deadlock-server-picker/tree/v0.1.0
 
