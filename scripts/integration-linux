@@ -99,6 +99,15 @@ for backend in nftables iptables; do
         dsp block asia >/dev/null; expect "re-apply restores the INPUT jump" 1 "$(in_ns iptables -w -S INPUT | grep -c -- '-j DSP_DEADLOCK_SERVER_PICKER')"
     fi
     dsp unblock --all >/dev/null; expect "unblock --all leaves nothing of ours" 0 "$(ours)"
+    out=$(printf '%s\n' \
+        '{"op":"apply","blocked":{"zzta":["192.0.2.1","192.0.2.2"]}}' \
+        '{"op":"read"}' \
+        '{"op":"apply","blocked":{"zzta":["0.0.0.0/0"]}}' \
+        '{"op":"reset"}' | DSP_CONFIG_DIR="$cfg" ip netns exec "$ns" "$bin" agent --backend "$backend" 2>>"$cfg/stderr.log")
+    expect "agent: one response per request plus the initial read" 5 "$(echo "$out" | wc -l | tr -d ' ')"
+    expect "agent: apply + read show the PoP" 2 "$(echo "$out" | sed -n '2,3p' | grep -c '"zzta":\["192.0.2.1","192.0.2.2"\]')"
+    expect "agent: invalid apply rejected" 1 "$(echo "$out" | sed -n '4p' | grep -c '"ok":false')"
+    expect "agent: reset leaves nothing of ours" 0 "$(ours)"
     dsp block na eu >/dev/null
     dsp reset >/dev/null
     expect "reset leaves zero traces of ours" 0 "$(snapshot | grep -c -e dsp_deadlock_server_picker -e DSP_DEADLOCK_SERVER_PICKER || true)"

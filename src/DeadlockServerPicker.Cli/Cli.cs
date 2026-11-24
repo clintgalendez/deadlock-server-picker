@@ -14,7 +14,8 @@ public sealed record CliEnv(
     IPinger Pinger,
     TextWriter Out,
     TextWriter Err,
-    Func<bool> IsElevated);
+    Func<bool> IsElevated,
+    TextReader? In = null);
 
 public static class ExitCodes
 {
@@ -44,6 +45,7 @@ public static partial class Cli
           preset within <ms>         Block every PoP slower than <ms> (timeouts are left open)
           preset unblock-all         Same as `unblock --all`
           reset                Remove every firewall rule this tool created, nothing else
+          agent                Privileged helper for the Linux GUI (started via pkexec; JSON lines on stdin)
           version              Show version, config and log file paths
           help                 Show this help
 
@@ -85,6 +87,7 @@ public static partial class Cli
                 "status" => await StatusAsync(args, env, ct),
                 "block" or "unblock" or "preset" => await ChangeAsync(args, env, ct),
                 "reset" => await ResetAsync(args, env, ct),
+                "agent" => await AgentAsync(args, env, ct),
                 _ => throw new UsageException($"Unknown command '{args.Command}'. Run `dsp help`."),
             };
         }
@@ -251,6 +254,20 @@ public static partial class Cli
         }
         foreach (var w in state.Warnings)
             env.Out.WriteLine($"warning: {w}");
+        return ExitCodes.Ok;
+    }
+
+    // ---- agent -----------------------------------------------------------------------------
+
+    private static async Task<int> AgentAsync(CliArgs args, CliEnv env, CancellationToken ct)
+    {
+        if (!env.IsElevated())
+            return Fail(args, env, "`dsp agent` must run as root; the GUI starts it with pkexec.", ExitCodes.NeedsElevation);
+        var backend = await FirewallBackends.CreateAsync(env.Runner, args.Backend, ct);
+        Log.Info($"agent started ({backend.Name})");
+        await using var service = new LocalFirewallService(backend, env.Runner);
+        await Agent.RunAsync(env.In ?? Console.In, env.Out, service, ct);
+        Log.Info("agent stopped (stdin closed)");
         return ExitCodes.Ok;
     }
 
