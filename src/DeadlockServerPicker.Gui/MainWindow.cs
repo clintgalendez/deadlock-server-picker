@@ -363,10 +363,16 @@ internal sealed class MainWindow : Window
         {
             await action();
         }
-        catch (Exception e) when (e is FirewallException or HttpRequestException or IOException or InvalidOperationException)
+        catch (FirewallException e)
         {
             Log.Error("gui action failed", e);
             SetStatus(e.Message, BlockedBrush);
+        }
+        catch (Exception e)
+        {
+            // Last line of defence for button handlers: never crash the window, always leave a trace.
+            Log.Error("gui action failed unexpectedly", e);
+            SetStatus($"Something went wrong: {e.Message} Details are in the log file ({Log.FilePath}).", BlockedBrush);
         }
         finally
         {

@@ -2,10 +2,14 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command '& ([
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 Remove-TypeData -TypeName System.Array -ErrorAction SilentlyContinue
+$service = [string](Get-Service -Name MpsSvc -ErrorAction SilentlyContinue).Status
+$thirdParty = @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduct -ErrorAction SilentlyContinue | ForEach-Object { [string]$_.displayName })
 $rules = @(Get-NetFirewallRule -Group 'DeadlockServerPicker' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'DeadlockServerPicker_*' })
 $filters = @($rules | Get-NetFirewallAddressFilter)
 ConvertTo-Json -Compress -Depth 4 -InputObject ([pscustomobject]@{
+    Service = $service
+    ThirdParty = $thirdParty
     Rules = @($filters | ForEach-Object { [pscustomobject]@{ Name = [string]$_.InstanceID; Remote = @($_.RemoteAddress | ForEach-Object { [string]$_ }) } })
-    Profiles = @(Get-NetFirewallProfile | ForEach-Object { [pscustomobject]@{ Name = [string]$_.Name; Enabled = [string]$_.Enabled } })
+    Profiles = @(Get-NetFirewallProfile -ErrorAction SilentlyContinue | ForEach-Object { [pscustomobject]@{ Name = [string]$_.Name; Enabled = [string]$_.Enabled } })
 })
 EOF

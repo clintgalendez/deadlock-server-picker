@@ -34,6 +34,18 @@ public class FirewallReadTests
     }
 
     [Fact]
+    public void WindowsWarnsWhenTheServiceIsStoppedOrAnotherFirewallIsInCharge()
+    {
+        var s = WindowsFirewallBackend.ParseRead("""{"Service":"Stopped","ThirdParty":["Bitdefender Firewall"],"Rules":[],"Profiles":[]}""");
+        Assert.Contains(s.Warnings, w => w.Contains("(MpsSvc) is Stopped", StringComparison.Ordinal));
+        Assert.Contains(s.Warnings, w => w.Contains("Bitdefender Firewall", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WindowsHealthyFirewallHasNoWarnings() =>
+        Assert.Empty(WindowsFirewallBackend.ParseRead("""{"Service":"Running","ThirdParty":[],"Rules":[],"Profiles":[{"Name":"Public","Enabled":"True"}]}""").Warnings);
+
+    [Fact]
     public void WindowsEmptyRead() =>
         Assert.Empty(WindowsFirewallBackend.ParseRead("""{"Rules":[],"Profiles":[{"Name":"Domain","Enabled":"True"}]}""").Blocked);
 

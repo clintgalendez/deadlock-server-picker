@@ -27,11 +27,15 @@ public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string
         """;
 
     private const string ReadBody = """
+        $service = [string](Get-Service -Name MpsSvc -ErrorAction SilentlyContinue).Status
+        $thirdParty = @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduct -ErrorAction SilentlyContinue | ForEach-Object { [string]$_.displayName })
         $rules = @(Get-NetFirewallRule -Group 'DeadlockServerPicker' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'DeadlockServerPicker_*' })
         $filters = @($rules | Get-NetFirewallAddressFilter)
         ConvertTo-Json -Compress -Depth 4 -InputObject ([pscustomobject]@{
+            Service = $service
+            ThirdParty = $thirdParty
             Rules = @($filters | ForEach-Object { [pscustomobject]@{ Name = [string]$_.InstanceID; Remote = @($_.RemoteAddress | ForEach-Object { [string]$_ }) } })
-            Profiles = @(Get-NetFirewallProfile | ForEach-Object { [pscustomobject]@{ Name = [string]$_.Name; Enabled = [string]$_.Enabled } })
+            Profiles = @(Get-NetFirewallProfile -ErrorAction SilentlyContinue | ForEach-Object { [pscustomobject]@{ Name = [string]$_.Name; Enabled = [string]$_.Enabled } })
         })
 
         """;
@@ -126,7 +130,14 @@ public sealed partial class WindowsFirewallBackend(ICommandRunner runner, string
         foreach (var p in doc.RootElement.GetProperty("Profiles").EnumerateArray())
         {
             if (p.GetProperty("Enabled").GetString() != "True")
-                b.Warnings.Add($"Windows Defender Firewall is OFF for the {p.GetProperty("Name").GetString()} profile; rules are not enforced there.");
+                b.Warnings.Add($"Windows Defender Firewall is OFF for the {p.GetProperty("Name").GetString()} profile; rules are not enforced there. Turn it on in Windows Security > Firewall & network protection.");
+        }
+        if (doc.RootElement.TryGetProperty("Service", out var service) && service.GetString() is { Length: > 0 } status && status != "Running")
+            b.Warnings.Add($"The Windows Defender Firewall service (MpsSvc) is {status}, so no rules are enforced. Start it (services.msc) or restart Windows.");
+        if (doc.RootElement.TryGetProperty("ThirdParty", out var products) && products.GetArrayLength() > 0)
+        {
+            var names = string.Join(", ", products.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x)));
+            b.Warnings.Add($"Another firewall is registered with Windows: {names}. Security suites often take over from Windows Defender Firewall, and then these rules are not enforced. Use that product's own blocking, or see docs/troubleshooting.md.");
         }
         return b.Build(present: rules.GetArrayLength() > 0);
     }

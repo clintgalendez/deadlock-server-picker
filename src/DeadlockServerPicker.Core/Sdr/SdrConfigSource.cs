@@ -47,12 +47,20 @@ public sealed class SdrConfigSource(HttpClient http, string cacheDir)
         return new LoadedConfig(cached, appId, fetchedAt, offline ? "offline mode" : $"download failed: {error}");
     }
 
+    /// <summary>Best effort: a read-only or root-owned config dir must not stop the app from working online.</summary>
     private void WriteCache(int appId, string body)
     {
-        Directory.CreateDirectory(cacheDir);
-        var path = CachePath(appId);
-        var tmp = path + ".tmp";
-        File.WriteAllText(tmp, body);
-        File.Move(tmp, path, overwrite: true);
+        try
+        {
+            Directory.CreateDirectory(cacheDir);
+            var path = CachePath(appId);
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, body);
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"could not cache the SDR config in {cacheDir}: {e.Message}");
+        }
     }
 }
