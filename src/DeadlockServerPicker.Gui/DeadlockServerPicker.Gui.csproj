@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>DeadlockServerPicker</AssemblyName>
+    <RootNamespace>DeadlockServerPicker.Gui</RootNamespace>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- Windows: one UAC prompt at launch, then firewall changes run in-process (ADR 0003). -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DeadlockServerPicker.Core\DeadlockServerPicker.Core.csproj" />
+  </ItemGroup>
+  <!-- SkiaSharp/HarfBuzzSharp ship ~100 MB of native .pdb files next to their DLLs; users don't need them. -->
+  <Target Name="DropNativeSymbols" AfterTargets="Publish">
+    <ItemGroup>
+      <_NativeSymbols Include="$(PublishDir)libSkiaSharp.pdb;$(PublishDir)libHarfBuzzSharp.pdb" />
+    </ItemGroup>
+    <Delete Files="@(_NativeSymbols)" />
+  </Target>
+</Project>

@@ -10,6 +10,9 @@ version := env("DSP_VERSION", "0.0.0-dev")
 rids := "win-x64 linux-x64"
 allowed_licenses := "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause"
 
+# Avalonia.BuildServices sends anonymous build telemetry unless opted out.
+export AVALONIA_TELEMETRY_OPTOUT := "1"
+
 default:
     @just --list
 
@@ -30,8 +33,9 @@ fmt:
 fmt-check: restore
     dotnet format {{sln}} --verify-no-changes --no-restore
 
-# Compile everything with analyzers; warnings are errors
+# Compile everything with analyzers (warnings are errors) and reject non-UTF-8 text files
 lint: restore
+    git ls-files -z -- '*.cs' '*.md' '*.json' '*.toml' '*.yml' '*.csproj' '*.props' 'scripts/*' justfile | xargs -0 -n1 sh -c 'iconv -f UTF-8 -t UTF-8 "$0" >/dev/null 2>&1 || { echo "not valid UTF-8: $0"; exit 255; }'
     dotnet build {{sln}} -c Release --no-restore
 
 # Run unit tests
@@ -42,10 +46,12 @@ test: restore
 test-quick:
     dotnet test --solution {{sln}}
 
-# Publish self-contained single-file binaries for every target
+# Publish self-contained single-file binaries (CLI + GUI) for every target
 build: restore
     for rid in {{rids}}; do \
-        dotnet publish src/DeadlockServerPicker.Cli -c Release -r "$rid" -o "artifacts/publish/$rid" -p:Version={{version}}; \
+        for project in Cli Gui; do \
+            dotnet publish "src/DeadlockServerPicker.$project" -c Release -r "$rid" -o "artifacts/publish/$rid" -p:Version={{version}}; \
+        done; \
     done
 
 # License allowlist + known-vulnerability scan of all (transitive) packages
