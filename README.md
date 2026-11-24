@@ -23,7 +23,7 @@ Blocking is a **strong nudge, not a guarantee**:
 
 To see where you actually are, open the Deadlock console (F7) in a match and run `net_connection_status`. It prints the data center you are connected to, e.g. `Remote host: fra`.
 
-Full details: [docs/limitations.md](docs/limitations.md).
+Full details: [docs/limitations.md](docs/limitations.md). Something not working? See [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ### In-game region setting (complementary)
 
