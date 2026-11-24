@@ -20,7 +20,7 @@ public sealed record ConfigDto(int AppId, long Revision, DateTimeOffset FetchedA
 
 public sealed record ListDto(ConfigDto Config, IReadOnlyList<PopDto> Pops);
 
-public sealed record BlockedPopDto(string Code, IReadOnlyList<string> Ips, bool? MatchesConfig);
+public sealed record BlockedPopDto(string Code, IReadOnlyList<string> Ips, bool? MatchesConfig, IReadOnlyList<string>? MissingIps = null, IReadOnlyList<string>? ExtraIps = null);
 
 public sealed record StatusDto(string Backend, IReadOnlyList<BlockedPopDto> Blocked, IReadOnlyList<string> Warnings, ConfigDto? Config);
 

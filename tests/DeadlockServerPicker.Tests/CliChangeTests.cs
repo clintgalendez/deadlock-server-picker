@@ -152,4 +152,24 @@ public class CliChangeTests
         var h = new Harness();
         Assert.Equal(ExitCodes.Usage, await h.Run([.. argv, "--dry-run"]));
     }
+    [Fact]
+    public async Task ResyncUpdatesOnlyStaleBlocksAndStatusExplainsWhy()
+    {
+        var h = new Harness();
+        await h.Run("block", "ams", "fra");
+        h.Nft.Table = h.Nft.Table!.Replace("155.133.248.37", "9.9.9.9", StringComparison.Ordinal);
+
+        Assert.Equal(0, await h.Run("status"));
+        Assert.Contains("ams    4 IPs | 1 new relay IP not blocked yet, 1 old IP still blocked", h.Out.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Run `dsp resync`", h.Out.ToString(), StringComparison.Ordinal);
+
+        Assert.Equal(0, await h.Run("resync"));
+        Assert.Contains("~ update  ams", h.Out.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("fra", h.Out.ToString().Split("Plan")[1].Split("Done")[0], StringComparison.Ordinal);
+        Assert.Equal(["ams", "fra"], h.Firewall.Blocked.Keys);
+        Assert.Contains("155.133.248.37", h.Firewall.Blocked["ams"]);
+
+        Assert.Equal(0, await h.Run("resync"));
+        Assert.Contains("Nothing to change", h.Out.ToString(), StringComparison.Ordinal);
+    }
 }

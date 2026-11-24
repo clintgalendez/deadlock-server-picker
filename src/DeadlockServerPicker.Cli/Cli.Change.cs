@@ -73,6 +73,8 @@ public static partial class Cli
                 }
             case "preset":
                 return await PresetAsync(args, env, cfg, ct);
+            case "resync":
+                return new Plan(Planner.Resync(cfg, current), [.. Planner.StaleBlocks(cfg, current).Select(s => s.Describe())]);
             default:
                 throw new UsageException($"Unknown command '{args.Command}'.");
         }

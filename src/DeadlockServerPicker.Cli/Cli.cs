@@ -44,6 +44,7 @@ public static partial class Cli
           preset only-region <region>...   Block every PoP outside these regions
           preset within <ms>         Block every PoP slower than <ms> (timeouts are left open)
           preset unblock-all         Same as `unblock --all`
+          resync               Re-block the currently blocked PoPs with Valve's current relay IPs
           reset                Remove every firewall rule this tool created, nothing else
           agent                Privileged helper for the Linux GUI (started via pkexec; JSON lines on stdin)
           version              Show version, config and log file paths
@@ -85,7 +86,7 @@ public static partial class Cli
                 "list" => await ListAsync(args, env, ping: false, ct),
                 "ping" => await ListAsync(args, env, ping: true, ct),
                 "status" => await StatusAsync(args, env, ct),
-                "block" or "unblock" or "preset" => await ChangeAsync(args, env, ct),
+                "block" or "unblock" or "preset" or "resync" => await ChangeAsync(args, env, ct),
                 "reset" => await ResetAsync(args, env, ct),
                 "agent" => await AgentAsync(args, env, ct),
                 _ => throw new UsageException($"Unknown command '{args.Command}'. Run `dsp help`."),
@@ -227,11 +228,14 @@ public static partial class Cli
             env.Err.WriteLine($"warning: {e.Message} Showing firewall state without comparing it to Valve's relay list.");
         }
 
+        var stale = loaded is null ? [] : Planner.StaleBlocks(loaded.Config, state).ToDictionary(s => s.Pop);
         var blocked = state.Blocked
             .Select(kv => new BlockedPopDto(
                 kv.Key,
                 kv.Value.ToList(),
-                loaded?.Config.Pops.TryGetValue(kv.Key, out var pop) == true ? pop.Relays.Select(r => r.Ipv4).ToHashSet().SetEquals(kv.Value) : null))
+                loaded is null ? null : !stale.ContainsKey(kv.Key),
+                stale.GetValueOrDefault(kv.Key)?.Missing,
+                stale.GetValueOrDefault(kv.Key)?.Extra))
             .ToList();
         var dto = new StatusDto(backend.Name, blocked, state.Warnings, loaded is null ? null : ToDto(loaded));
         if (args.Json)
@@ -244,14 +248,11 @@ public static partial class Cli
             env.Out.WriteLine($"Blocked PoPs ({blocked.Count}):");
         foreach (var b in blocked)
         {
-            var note = b.MatchesConfig switch
-            {
-                false => " | relay IPs changed since blocking: run `dsp block " + b.Code + "` again to re-apply",
-                null when loaded is not null => " | no longer in Valve's relay list",
-                _ => "",
-            };
+            var note = stale.TryGetValue(b.Code, out var s) ? " | " + s.Describe()[(b.Code.Length + 2)..] : "";
             env.Out.WriteLine($"  {b.Code,-6} {b.Ips.Count} IP{(b.Ips.Count == 1 ? "" : "s")}{note}");
         }
+        if (stale.Count > 0)
+            env.Out.WriteLine($"Valve's relay list changed for {stale.Count} blocked PoP{(stale.Count == 1 ? "" : "s")}. Run `dsp resync` (elevated / sudo) to block the current relays.");
         foreach (var w in state.Warnings)
             env.Out.WriteLine($"warning: {w}");
         return ExitCodes.Ok;

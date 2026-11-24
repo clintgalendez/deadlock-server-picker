@@ -1,4 +1,5 @@
 Firewall backend: nftables
 Blocked PoPs (2):
   ams    4 IPs
-  sgp    1 IP | relay IPs changed since blocking: run `dsp block sgp` again to re-apply
+  sgp    1 IP | 6 new relay IPs not blocked yet, 1 old IP still blocked
+Valve's relay list changed for 1 blocked PoP. Run `dsp resync` (elevated / sudo) to block the current relays.

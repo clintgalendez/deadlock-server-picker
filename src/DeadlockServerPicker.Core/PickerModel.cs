@@ -42,6 +42,16 @@ public sealed class PickerModel(SdrConfig config)
 
     public void SetPings(IReadOnlyDictionary<string, long?> pings) => _pings = pings;
 
+    /// <summary>Replaces the allow-list (used to keep the user's pending edits across a re-sync).</summary>
+    public void SetAllowedSet(IEnumerable<string> allowed)
+    {
+        _allowed.Clear();
+        _allowed.UnionWith(allowed.Where(c => Config.Pops.TryGetValue(c, out var p) && p.Blockable));
+    }
+
+    /// <summary>Blocked PoPs whose relay IPs changed since they were blocked (empty until the firewall is read).</summary>
+    public IReadOnlyList<StaleBlock> Stale => Firewall is null ? [] : Planner.StaleBlocks(Config, Firewall);
+
     public void SetAllowed(string pop, bool allowed)
     {
         if (!Config.Pops.TryGetValue(pop, out var p) || !p.Blockable)
