@@ -24,6 +24,19 @@ public sealed partial class IptablesBackend(ICommandRunner runner) : IFirewallBa
         return Parse(r.Stdout);
     }
 
+    public async Task<IReadOnlyList<string>> DetectOtherToolsAsync(CancellationToken ct = default)
+    {
+        var r = await runner.RunAsync(ListRules, ct);
+        return r.ExitCode == 0 ? OtherToolsIn(r.Stdout) : [];
+    }
+
+    /// <summary>Exact-token markers of other pickers. Ours (DSP_DEADLOCK_SERVER_PICKER) never matches.</summary>
+    [GeneratedRegex("""(?m)^-N (?<name>DEADLOCK_SERVER_PICKER|cs2-server-picker-rules|CS2_BLOCKLIST)\s*$|--comment "?(?<name>server_picker_x)"?(?:\s|$)""")]
+    private static partial Regex OtherToolMarker();
+
+    public static IReadOnlyList<string> OtherToolsIn(string listRules) =>
+        OtherToolMarker().Matches(listRules).Select(m => m.Groups["name"].Value).Distinct(StringComparer.Ordinal).Select(OtherTools.Warning).ToList();
+
     [GeneratedRegex(@"^-A (?<chain>\S+) (?<rest>.*)$")]
     private static partial Regex AppendLine();
 

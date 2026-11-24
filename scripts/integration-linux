@@ -88,6 +88,7 @@ for backend in nftables iptables; do
     before=$(snapshot)
 
     out=$(dsp status); expect "status: nothing blocked at start" "Nothing is blocked." "$(echo "$out" | grep -o 'Nothing is blocked.' || true)"
+    expect "status names the other picker's rules (never touched)" yes "$(echo "$out" | grep -qi 'another server picker (deadlock_server_picker)' && echo yes || echo no)"
     dsp block asia >/dev/null || fail "block asia exited non-zero"
     if [ "$backend" = nftables ]; then expect "block asia: 7 sets" 7 "$(ours)"; else expect "block asia: 32 relay IPs (-d rules)" 32 "$(ours)"; fi
     out=$(dsp block asia); expect "re-block is a no-op" "Nothing to change" "$(echo "$out" | grep -o 'Nothing to change' || true)"

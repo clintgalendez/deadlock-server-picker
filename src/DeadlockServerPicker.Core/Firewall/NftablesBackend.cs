@@ -29,6 +29,21 @@ public sealed partial class NftablesBackend(ICommandRunner runner) : IFirewallBa
         return Parse(table.Stdout);
     }
 
+    public static Command ListRuleset { get; } = new("nft", ["list", "ruleset"]);
+
+    public async Task<IReadOnlyList<string>> DetectOtherToolsAsync(CancellationToken ct = default)
+    {
+        var r = await runner.RunAsync(ListRuleset, ct);
+        return r.ExitCode == 0 ? OtherToolsIn(r.Stdout) : [];
+    }
+
+    /// <summary>Exact-token markers of other pickers. Ours (dsp_deadlock_server_picker) never matches.</summary>
+    [GeneratedRegex(""""(?m)^\s*(?:table inet (?<name>deadlock_server_picker)|chain (?<name>DEADLOCK_SERVER_PICKER|cs2-server-picker-rules|CS2_BLOCKLIST)) \{|comment "(?<name>server_picker_x)"""")]
+    private static partial Regex OtherToolMarker();
+
+    public static IReadOnlyList<string> OtherToolsIn(string ruleset) =>
+        OtherToolMarker().Matches(ruleset).Select(m => m.Groups["name"].Value).Distinct(StringComparer.Ordinal).Select(OtherTools.Warning).ToList();
+
     public static bool HasOurTable(string listTables) =>
         listTables.Split('\n').Any(l => l.Trim() == $"table inet {Table}");
 

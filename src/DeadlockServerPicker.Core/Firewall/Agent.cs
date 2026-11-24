@@ -11,7 +11,7 @@ namespace DeadlockServerPicker.Core.Firewall;
 // firewall command itself, so a compromised GUI can at worst block or unblock IPv4 addresses inside
 // our own namespace. See ADR 0003.
 
-public sealed record AgentRequest(string Op, Dictionary<string, List<string>>? Blocked = null);
+public sealed record AgentRequest(string Op, Dictionary<string, List<string>>? Blocked = null, bool Detect = false);
 
 public sealed record AgentState(bool Present, Dictionary<string, List<string>> Blocked, List<string> Warnings);
 
@@ -26,7 +26,8 @@ internal sealed partial class AgentJson : JsonSerializerContext;
 public interface IFirewallService : IAsyncDisposable
 {
     string? Backend { get; }
-    Task<FirewallState> ReadAsync(CancellationToken ct = default);
+    /// <summary>Reads the firewall; detectOtherTools also warns about other server pickers' rules (first read of a session).</summary>
+    Task<FirewallState> ReadAsync(bool detectOtherTools = false, CancellationToken ct = default);
     Task<FirewallState> ApplyAsync(DesiredState desired, CancellationToken ct = default);
     Task<FirewallState> ResetAsync(CancellationToken ct = default);
 }
@@ -36,7 +37,11 @@ public sealed class LocalFirewallService(IFirewallBackend backend, ICommandRunne
 {
     public string? Backend => backend.Name;
 
-    public Task<FirewallState> ReadAsync(CancellationToken ct = default) => backend.ReadAsync(ct);
+    public async Task<FirewallState> ReadAsync(bool detectOtherTools = false, CancellationToken ct = default)
+    {
+        var state = await backend.ReadAsync(ct);
+        return detectOtherTools ? state with { Warnings = [.. state.Warnings, .. await backend.DetectOtherToolsAsync(ct)] } : state;
+    }
 
     public async Task<FirewallState> ApplyAsync(DesiredState desired, CancellationToken ct = default)
     {
@@ -62,7 +67,7 @@ public static class Agent
 
     public static async Task RunAsync(TextReader input, TextWriter output, IFirewallService service, CancellationToken ct = default)
     {
-        await WriteAsync(output, await Safe(async () => Ok(service, await service.ReadAsync(ct))));
+        await WriteAsync(output, await Safe(async () => Ok(service, await service.ReadAsync(detectOtherTools: true, ct))));
         while (await input.ReadLineAsync(ct) is { } line)
         {
             if (line.Length == 0)
@@ -84,7 +89,7 @@ public static class Agent
         }
         return req?.Op switch
         {
-            "read" => await Safe(async () => Ok(service, await service.ReadAsync(ct))),
+            "read" => await Safe(async () => Ok(service, await service.ReadAsync(req.Detect, ct))),
             "reset" => await Safe(async () => Ok(service, await service.ResetAsync(ct))),
             "apply" => Validate(req.Blocked) is { } desired
                 ? await Safe(async () => Ok(service, await service.ApplyAsync(desired, ct)))
@@ -160,8 +165,8 @@ public sealed class AgentFirewallService(string dspPath, string? backend = null,
 
     public string? Backend { get; private set; }
 
-    public async Task<FirewallState> ReadAsync(CancellationToken ct = default) =>
-        await EnsureStartedAsync(ct) ?? await SendAsync(new AgentRequest("read"), ct);
+    public async Task<FirewallState> ReadAsync(bool detectOtherTools = false, CancellationToken ct = default) =>
+        await EnsureStartedAsync(ct) ?? await SendAsync(new AgentRequest("read", Detect: detectOtherTools), ct);
 
     public async Task<FirewallState> ApplyAsync(DesiredState desired, CancellationToken ct = default)
     {

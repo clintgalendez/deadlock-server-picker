@@ -219,6 +219,7 @@ public static partial class Cli
         if (backend.Name != "windows" && !env.IsElevated())
             return Fail(args, env, $"Reading {backend.Name} rules needs root. Re-run with sudo: `sudo dsp status`.", ExitCodes.NeedsElevation);
         var state = await backend.ReadAsync(ct);
+        state = state with { Warnings = [.. state.Warnings, .. await backend.DetectOtherToolsAsync(ct)] };
 
         LoadedConfig? loaded = null;
         try

@@ -1,0 +1,6 @@
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command '& ([scriptblock]::Create([Console]::In.ReadToEnd()))' <<'EOF'
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+Remove-TypeData -TypeName System.Array -ErrorAction SilentlyContinue
+ConvertTo-Json -Compress -InputObject @(Get-NetFirewallRule -DisplayName 'server_picker_x_*','CS2ServerPicker_*','cs2-relay-*' -ErrorAction SilentlyContinue | ForEach-Object { [string]$_.DisplayName })
+EOF
